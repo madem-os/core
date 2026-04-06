@@ -8,7 +8,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parent.parent
-EXPECTED_TEXT = "hello yoti!"
+EXPECTED_TEXT = "¸¸Hello, World!"
 QEMU_TIMEOUT_SECONDS = 5
 BOOT_WAIT_SECONDS = 1.0
 VGA_DUMP_BYTES = 160
