@@ -118,18 +118,25 @@ require_tool \
     "Install QEMU and make sure \`qemu-system-i386\` is on PATH." \
     "${QEMU_BIN:-}" qemu-system-i386
 
-DISK_IMAGE="disk.img"
+BUILD_DIR="bin"
+BOOT_BIN="${BUILD_DIR}/bootS.bin"
+KERNEL_OBJ="${BUILD_DIR}/kernel.o"
+KERNEL_ELF="${BUILD_DIR}/kernel.elf"
+KERNEL_BIN="${BUILD_DIR}/kernel.bin"
+DISK_IMAGE="${BUILD_DIR}/disk.img"
 DISK_SIZE="10M"
 
-"${NASM}" -f bin bootS.asm -o bootS.bin
+mkdir -p "${BUILD_DIR}"
+
+"${NASM}" -f bin bootS.asm -o "${BOOT_BIN}"
 "${TRUNCATE_BIN}" -s "${DISK_SIZE}" "${DISK_IMAGE}"
-dd if=bootS.bin of="${DISK_IMAGE}" bs=512 conv=notrunc
+dd if="${BOOT_BIN}" of="${DISK_IMAGE}" bs=512 conv=notrunc
 
-"${CC}" "${CFLAGS[@]}" kernel.c -o kernel.o
-"${LD_BIN}" -m elf_i386 -T link.ld -o kernel.elf kernel.o
-"${OBJCOPY_BIN}" -O binary kernel.elf kernel.bin
-"${TRUNCATE_BIN}" -s 1048576 kernel.bin
+"${CC}" "${CFLAGS[@]}" kernel.c -o "${KERNEL_OBJ}"
+"${LD_BIN}" -m elf_i386 -T link.ld -o "${KERNEL_ELF}" "${KERNEL_OBJ}"
+"${OBJCOPY_BIN}" -O binary "${KERNEL_ELF}" "${KERNEL_BIN}"
+"${TRUNCATE_BIN}" -s 1048576 "${KERNEL_BIN}"
 
-dd if=kernel.bin of="${DISK_IMAGE}" bs=512 seek=64 conv=notrunc
+dd if="${KERNEL_BIN}" of="${DISK_IMAGE}" bs=512 seek=64 conv=notrunc
 
 "${QEMU_BIN}" -m 512 -drive file="${DISK_IMAGE}",format=raw

@@ -1,5 +1,1 @@
-bootS.bin
-kernel.bin
-kernel.o
-kernel.elf
-disk.img
+bin/
