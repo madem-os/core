@@ -2,6 +2,25 @@
 
 set -euo pipefail
 
+RUN_QEMU="${RUN_QEMU:-1}"
+
+if [[ $# -gt 1 ]]; then
+    printf 'Usage: %s [--build-only]\n' "$0" >&2
+    exit 1
+fi
+
+if [[ $# -eq 1 ]]; then
+    case "$1" in
+        --build-only)
+            RUN_QEMU=0
+            ;;
+        *)
+            printf 'Usage: %s [--build-only]\n' "$0" >&2
+            exit 1
+            ;;
+    esac
+fi
+
 find_tool() {
     local tool
 
@@ -139,4 +158,6 @@ dd if="${BOOT_BIN}" of="${DISK_IMAGE}" bs=512 conv=notrunc
 
 dd if="${KERNEL_BIN}" of="${DISK_IMAGE}" bs=512 seek=64 conv=notrunc
 
-"${QEMU_BIN}" -m 512 -drive file="${DISK_IMAGE}",format=raw
+if [[ "${RUN_QEMU}" == "1" ]]; then
+    "${QEMU_BIN}" -m 512 -drive file="${DISK_IMAGE}",format=raw
+fi

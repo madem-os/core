@@ -84,6 +84,12 @@ This will:
 3. generate `bin/disk.img`
 4. start QEMU with that image
 
+If you only want to build the image without launching QEMU:
+
+```bash
+./build.sh --build-only
+```
+
 ## Build And Run On Linux
 
 ```bash
@@ -110,4 +116,21 @@ Example manual run:
 
 ```bash
 qemu-system-i386 -m 512 -drive file=bin/disk.img,format=raw
+```
+
+## E2E Test
+
+There is a simple end-to-end VGA test under `tests/e2e_vga.py`.
+
+It does the following:
+
+1. runs `./build.sh --build-only`
+2. boots `bin/disk.img` in headless QEMU
+3. reads the VGA text buffer through the QEMU monitor
+4. asserts that the expected text appears
+
+Run it with:
+
+```bash
+python3 tests/e2e_vga.py
 ```
