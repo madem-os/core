@@ -5,10 +5,17 @@ typedef uint8_t  u8;
 typedef uint16_t u16;
 typedef uint32_t u32;
 
+#if defined(__ELF__)
+#define KERNEL_ENTRY_SECTION __attribute__((section(".text.entry")))
+#else
+#define KERNEL_ENTRY_SECTION
+#endif
 
+#define VGA_MEMORY ((volatile uint8_t*)0x000b8000)
 
-uint8_t* vga = (uint8_t*)0x000b8000;
 uint16_t character_ptr = 0;
+
+void move_cursor_forward(void);
 
 static inline void outb(u16 port, u8 value) {
     __asm__ volatile ("outb %0, %1" : : "a"(value), "Nd"(port));
@@ -28,7 +35,7 @@ static inline void outw(u16 port, u16 value) {
 
 
 
-__attribute__((naked, used, section(".text.entry")))
+__attribute__((naked, used)) KERNEL_ENTRY_SECTION
 void kernel_entry(void) {
     __asm__ volatile (
         "cli\n"
@@ -48,8 +55,8 @@ void kernel_entry(void) {
 }
 
 void print_char(uint8_t ch) {
-	vga[character_ptr] = ch;
-	vga[character_ptr + 1] = 0x0f;
+	VGA_MEMORY[character_ptr] = ch;
+	VGA_MEMORY[character_ptr + 1] = 0x0f;
 	character_ptr += 2;
 	move_cursor_forward();
  }
@@ -64,10 +71,9 @@ void print_char(uint8_t ch) {
 
 #define VGA_INDEX 0x03d4
 #define VGA_DATA 0X3D5
-
 	
 	
-	void move_cursor_forward(void) {
+void move_cursor_forward(void) {
     uint16_t cursor_pos;
 
     // Read current cursor position
@@ -95,7 +101,7 @@ void print_char(uint8_t ch) {
 void kmain(void) {
 
 	
-	printf("hello world!");
+	printf("hello yoti!");
 
 		
     
@@ -104,8 +110,6 @@ void kmain(void) {
 	}
 
 }
-
-
 
 
 
