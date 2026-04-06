@@ -92,17 +92,64 @@ void move_cursor_forward(void) {
 }
 
 	
+void move_cursor_back(uint16_t amt) {
+    uint16_t cursor_pos;
+
+    // Read current cursor position
+    outb(VGA_INDEX, 0x0F);
+    cursor_pos = inb(VGA_DATA);
+    outb(VGA_INDEX, 0x0E);
+    cursor_pos |= ((uint16_t)inb(VGA_DATA)) << 8;
+
+    cursor_pos -= amt;
+
+    // Write new cursor position
+    outb(VGA_INDEX, 0x0F);
+    outb(VGA_DATA, (uint8_t)(cursor_pos & 0xFF));
+    outb(VGA_INDEX, 0x0E);
+    outb(VGA_DATA, (uint8_t)((cursor_pos >> 8) & 0xFF));
+}
+
+void move_cursor_down(void) {
+    uint16_t cursor_pos;
+
+    // Read current cursor position
+    outb(VGA_INDEX, 0x0F);
+    cursor_pos = inb(VGA_DATA);
+    outb(VGA_INDEX, 0x0E);
+    cursor_pos |= ((uint16_t)inb(VGA_DATA)) << 8;
+
+    cursor_pos += 80;
+
+    // Write new cursor position
+    outb(VGA_INDEX, 0x0F);
+    outb(VGA_DATA, (uint8_t)(cursor_pos & 0xFF));
+    outb(VGA_INDEX, 0x0E);
+    outb(VGA_DATA, (uint8_t)((cursor_pos >> 8) & 0xFF));
+}
 
 
-
-
-
+void print_line(char* str) {
+        int str_pointer = 0;
+        uint16_t count = 0;
+     while(str[str_pointer] != 0) {
+	         print_char(str[str_pointer]);
+	         str_pointer ++;
+                count ++;
+	}
+    character_ptr -= count * 2;
+    character_ptr += 160;
+    move_cursor_back(count);
+    move_cursor_down();
+	
+  }
 
 void kmain(void) {
 
 	
-	printf("hello yoti!");
-
+	print_line("Hello, World!");
+    print_line("is this working?");
+    printf("it is working!");
 		
     
     while(1) {
