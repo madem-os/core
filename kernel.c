@@ -1,5 +1,6 @@
 // kernel.c
 #include <stdint.h>
+#include <stdbool.h>
 
 typedef uint8_t  u8;
 typedef uint16_t u16;
@@ -58,7 +59,7 @@ void print_char(uint8_t ch) {
 	VGA_MEMORY[character_ptr] = ch;
 	VGA_MEMORY[character_ptr + 1] = 0x0f;
 	character_ptr += 2;
-	move_cursor_forward();
+	move_cursor(1, false);
  }
     void printf(char* str) {
         int str_pointer = 0;
@@ -73,7 +74,7 @@ void print_char(uint8_t ch) {
 #define VGA_DATA 0X3D5
 	
 	
-void move_cursor_forward(void) {
+void move_cursor(uint16_t amt, bool backwards) {
     uint16_t cursor_pos;
 
     // Read current cursor position
@@ -82,7 +83,11 @@ void move_cursor_forward(void) {
     outb(VGA_INDEX, 0x0E);
     cursor_pos |= ((uint16_t)inb(VGA_DATA)) << 8;
 
-    cursor_pos += 1;
+    if (backwards) {
+        cursor_pos -= amt;
+    } else {
+        cursor_pos += amt;
+    }
 
     // Write new cursor position
     outb(VGA_INDEX, 0x0F);
@@ -90,43 +95,8 @@ void move_cursor_forward(void) {
     outb(VGA_INDEX, 0x0E);
     outb(VGA_DATA, (uint8_t)((cursor_pos >> 8) & 0xFF));
 }
-
 	
-void move_cursor_back(uint16_t amt) {
-    uint16_t cursor_pos;
 
-    // Read current cursor position
-    outb(VGA_INDEX, 0x0F);
-    cursor_pos = inb(VGA_DATA);
-    outb(VGA_INDEX, 0x0E);
-    cursor_pos |= ((uint16_t)inb(VGA_DATA)) << 8;
-
-    cursor_pos -= amt;
-
-    // Write new cursor position
-    outb(VGA_INDEX, 0x0F);
-    outb(VGA_DATA, (uint8_t)(cursor_pos & 0xFF));
-    outb(VGA_INDEX, 0x0E);
-    outb(VGA_DATA, (uint8_t)((cursor_pos >> 8) & 0xFF));
-}
-
-void move_cursor_down(void) {
-    uint16_t cursor_pos;
-
-    // Read current cursor position
-    outb(VGA_INDEX, 0x0F);
-    cursor_pos = inb(VGA_DATA);
-    outb(VGA_INDEX, 0x0E);
-    cursor_pos |= ((uint16_t)inb(VGA_DATA)) << 8;
-
-    cursor_pos += 80;
-
-    // Write new cursor position
-    outb(VGA_INDEX, 0x0F);
-    outb(VGA_DATA, (uint8_t)(cursor_pos & 0xFF));
-    outb(VGA_INDEX, 0x0E);
-    outb(VGA_DATA, (uint8_t)((cursor_pos >> 8) & 0xFF));
-}
 
 
 void print_line(char* str) {
@@ -139,8 +109,8 @@ void print_line(char* str) {
 	}
     character_ptr -= count * 2;
     character_ptr += 160;
-    move_cursor_back(count);
-    move_cursor_down();
+    move_cursor(count, true);
+    move_cursor(80, false);
 	
   }
 
@@ -149,8 +119,8 @@ void kmain(void) {
 	
 	print_line("Hello, World!");
     print_line("is this working?");
-    printf("it is working!");
-		
+    print_line("it is working!");
+	printf("now it is as one!");	
     
     while(1) {
 		
