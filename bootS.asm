@@ -130,20 +130,24 @@ protected_mode_entry:
 	sector_count dw 0
 	lba_address dd 0
 	buffer_address dd 0
-	number_of_bytes dd 0
 	
 	read_kernel:
 	mov dword [lba_address], 64
-	mov word [sector_count], 2048
 	mov dword [buffer_address], 0x00100000
-	call read_harddisk_init
+	mov ecx, 2048
+	read_kernel_loop:
+	call read_sectors
+	call load_to_ram
+	inc dword [lba_address]
+	add dword [buffer_address], 512
+	loop read_kernel_loop
 	ret
 	
 	read_sectors:
 	push eax
 	push edx
-	mov al, 0
 	mov dx, 0x1f2
+	mov al, 1
 	out dx, al
 	inc dx
 	mov eax, [lba_address]
@@ -178,34 +182,17 @@ protected_mode_entry:
 	push edx
 	push edi
 	push ecx
-	push eax
 	mov dx, 0x1f0
 	mov edi, [buffer_address]
-	mov ecx, [number_of_bytes]
+	mov ecx, 256
 	load_loop:
 	in ax, dx
 	mov [edi], ax
 	add edi, 2
 	loop load_loop
-	pop eax
 	pop ecx
 	pop edi
 	pop edx
-	ret
-	
-	read_harddisk_init:
-	push ecx
-	xor ecx, ecx
-	mov cl, 8
-	mov word [sector_count], 256
-	mov dword [number_of_bytes], 65536
-	init_loop:
-	call read_sectors
-	add dword [lba_address], 256
-	call load_to_ram
-	add dword [buffer_address], 131072
-	loop init_loop
-	pop ecx
 	ret
 	
 	
