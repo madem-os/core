@@ -33,7 +33,6 @@ static void move_cursor(uint16_t amt, bool backwards) {
 
 void print_char(uint8_t ch) {
     VGA_MEMORY[character_ptr] = ch;
-    VGA_MEMORY[character_ptr + 1] = 0x0f;
     character_ptr += 2;
     move_cursor(1, false);
 }
