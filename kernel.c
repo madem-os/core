@@ -1,5 +1,7 @@
 // kernel.c
 #include "mos-stdio.h"
+#include <stdint.h>
+#include <stdbool.h>
 
 #if defined(__ELF__)
 #define KERNEL_ENTRY_SECTION __attribute__((section(".text.entry")))
@@ -26,12 +28,41 @@ void kernel_entry(void) {
     );
 }
 
-void kmain(void) {
-    print_line("Hello, World!");
-    print_line("is this working?");
-    print_line("it is working!");
-    printf("now it is as one!");
+static int shift_pressed = 0;
+static int ctrl_pressed = 0;
+static bool used = false;
 
-    while (1) {
+void process_scancode(uint8_t scancode) {
+    if (scancode == 0x2A) shift_pressed = 1;      // Shift make
+    else if (scancode == 0xAA) shift_pressed = 0;  // Shift break
+    else if (scancode == 0x1D) ctrl_pressed = 1;   // Ctrl make
+    else if (scancode == 0x9D) ctrl_pressed = 0;   // Ctrl break
+    else {
+        if (!used) {
+        char ascii = get_ascii(scancode);
+        if (shift_pressed && ascii >= 'a' && ascii <= 'z') {
+            ascii -= 32;  // Convert to uppercase
+        }
+        print_char((uint8_t)ascii);
+        used = true;
+        }
+        else {
+            used = false;
+        }
     }
 }
+
+void kmain(void) {
+    print_line("welcome to Madem-OS!");
+    print_line("mode set to free texting");
+    printf("Madem-OS:/");
+
+    while (1) {
+        uint8_t character = input();
+        process_scancode(character);
+
+    }
+}
+
+
+

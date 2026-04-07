@@ -6,5 +6,8 @@
 void print_char(uint8_t ch);
 void print_line(char* str);
 void printf(char* str);
+uint8_t input(void);
+char get_ascii(uint8_t scancode);
+
 
 #endif
