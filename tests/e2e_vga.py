@@ -8,7 +8,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parent.parent
-EXPECTED_TEXT = "Hello, World!"
+EXPECTED_TEXT = "welcome to Madem-OS!"
 QEMU_TIMEOUT_SECONDS = 5
 BOOT_WAIT_SECONDS = 1.0
 VGA_DUMP_BYTES = 80*1 # 1 line of VGA text (80 chars) * 1 byte per char

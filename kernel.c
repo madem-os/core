@@ -28,29 +28,7 @@ void kernel_entry(void) {
     );
 }
 
-static int shift_pressed = 0;
-static int ctrl_pressed = 0;
-static bool used = false;
 
-void process_scancode(uint8_t scancode) {
-    if (scancode == 0x2A) shift_pressed = 1;      // Shift make
-    else if (scancode == 0xAA) shift_pressed = 0;  // Shift break
-    else if (scancode == 0x1D) ctrl_pressed = 1;   // Ctrl make
-    else if (scancode == 0x9D) ctrl_pressed = 0;   // Ctrl break
-    else {
-        if (!used) {
-        char ascii = get_ascii(scancode);
-        if (shift_pressed && ascii >= 'a' && ascii <= 'z') {
-            ascii -= 32;  // Convert to uppercase
-        }
-        print_char((uint8_t)ascii);
-        used = true;
-        }
-        else {
-            used = false;
-        }
-    }
-}
 
 void kmain(void) {
     print_line("welcome to Madem-OS!");
@@ -59,8 +37,7 @@ void kmain(void) {
 
     while (1) {
         uint8_t character = input();
-        process_scancode(character);
-
+        process_scancode(character);        
     }
 }
 

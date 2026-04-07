@@ -37,6 +37,32 @@ void print_char(uint8_t ch) {
     move_cursor(1, false);
 }
 
+int hex_to_nibble(uint8_t code) {
+    if (code < 10) {
+        code += '0';
+    }
+    else {
+        code += '0';
+        code += 7;
+    }
+    return code;
+}
+
+void print_byte(uint8_t code) {
+    uint8_t low;
+    uint8_t high;
+    high = code;
+    low = code;
+    high = high >> 4;
+    high = hex_to_nibble(high);
+    low = low & 0x0f;
+    low = hex_to_nibble(low);
+    print_char('0');
+    print_char('x');
+    print_char(high);
+    print_char(low);
+}
+
 void printf(char* str) {
     int str_pointer = 0;
 
@@ -78,11 +104,29 @@ char get_ascii(uint8_t scancode) {
 
 
 
-
-
 uint8_t input(void) {
-    while (!(read_port_byte(0x64) & 1)) {
-
+    while (true)
+    {
+        while (!(read_port_byte(0x64) & 1)) {}
+        uint8_t ch = read_port_byte(0x60);
+        return ch;
     }
-    return read_port_byte(0x60);
+}
+
+static int shift_pressed = 0;
+static int ctrl_pressed = 0;
+
+void process_scancode(uint8_t scancode) {
+    if (scancode == 0x2A) shift_pressed = 1;      // left shift make
+    else if (scancode == 0xAA) shift_pressed = 0;  // left shift break
+    else if (scancode == 0x36) shift_pressed = 1;  // right shift break
+    else if (scancode == 0xB8) shift_pressed = 0;  // right shift break
+    else if (scancode & 0x80) {} // Break code - not printable
+    else {
+        char ascii = get_ascii(scancode);
+        if (shift_pressed && ascii >= 'a' && ascii <= 'z') {
+            ascii -= 32;  // Convert to uppercase
+        }
+        print_char((uint8_t)ascii);
+    }
 }
