@@ -119,8 +119,8 @@ static int ctrl_pressed = 0;
 void process_scancode(uint8_t scancode) {
     if (scancode == 0x2A) shift_pressed = 1;      // left shift make
     else if (scancode == 0xAA) shift_pressed = 0;  // left shift break
-    else if (scancode == 0x36) shift_pressed = 1;  // right shift break
-    else if (scancode == 0xB8) shift_pressed = 0;  // right shift break
+    else if (scancode == 0x36) shift_pressed = 1;  // right shift make
+    else if (scancode == 0xB6) shift_pressed = 0;  // right shift break
     else if (scancode & 0x80) {} // Break code - not printable
     else {
         char ascii = get_ascii(scancode);
@@ -130,3 +130,56 @@ void process_scancode(uint8_t scancode) {
         print_char((uint8_t)ascii);
     }
 }
+
+void text_mode() {
+    print_line("mode set to free texting mode!");
+    printf("Madem-OS:/");
+
+    while (1) {
+        uint8_t character = input();
+        process_scancode(character);        
+    }
+
+}
+
+void hex_debug_mode() {
+    print_line("mode set to hex debug mode!");
+    printf("Madem-OS:/");
+    while (1) {
+        uint8_t character = input();
+        print_byte(character);
+        printf(" ");
+    }
+}
+
+void modes_init() {
+    print_line("switch to free texting mode? [y/n]:");
+    while (1) {
+    uint8_t ans = input();
+    if (ans == 0x15) {
+        print_line("y");
+        text_mode();
+    }
+    else if (ans == 0x31) {
+        print_line("n");
+        while (1) {
+            print_line("switch to hex debug mode? [y/n]:");
+            while (1) {
+                uint8_t ans1 = input();
+                if (ans1 == 0x15) {
+                    print_line("y");
+                    hex_debug_mode();
+                }
+                if (ans1 == 0x31) {
+                    print_line("n");
+                    while (1);
+                }
+            }
+        }
+    }
+    }
+
+}
+
+
+

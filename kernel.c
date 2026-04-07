@@ -32,13 +32,7 @@ void kernel_entry(void) {
 
 void kmain(void) {
     print_line("welcome to Madem-OS!");
-    print_line("mode set to free texting");
-    printf("Madem-OS:/");
-
-    while (1) {
-        uint8_t character = input();
-        process_scancode(character);        
-    }
+    modes_init();
 }
 
 
