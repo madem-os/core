@@ -8,7 +8,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parent.parent
-EXPECTED_TEXT = "¸¸Hello, World!"
+EXPECTED_TEXT = "Hello, World!"
 QEMU_TIMEOUT_SECONDS = 5
 BOOT_WAIT_SECONDS = 1.0
 VGA_DUMP_BYTES = 160
@@ -23,7 +23,12 @@ def build_image() -> None:
 
 
 def decode_vga_text(monitor_output: str) -> str:
-    bytes_found = [int(value, 16) for value in re.findall(r"0x([0-9a-fA-F]{2})", monitor_output)]
+    dump_lines = [
+        line
+        for line in monitor_output.splitlines()
+        if re.match(r"^[0-9a-fA-F]+:\s", line)
+    ]
+    bytes_found = [int(value, 16) for value in re.findall(r"0x([0-9a-fA-F]{2})", "\n".join(dump_lines))]
     chars = []
 
     for i in range(0, len(bytes_found), 2):

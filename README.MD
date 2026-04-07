@@ -16,6 +16,8 @@ At the moment, the kernel boots into protected mode and prints a message to VGA 
 
 - `bootS.asm`: boot sector + stage-2 loader
 - `kernel.c`: main kernel entry translation unit
+- `src/mos-ports.c`: low-level x86 port I/O helpers
+- `src/mos-stdio.c`: VGA text output helpers
 - `src/`: additional C source files compiled recursively into the kernel
 - `include/`: shared header files for the kernel code
 - `link.ld`: ELF linker script for the kernel
@@ -46,6 +48,13 @@ Headers can be placed under `include/` and included like this:
 ```
 
 because `build.sh` adds `include/` to the compiler include path.
+
+Current shared modules include:
+
+- `mos-ports.h`: `read_port_byte`, `write_port_byte`, `write_port_word`
+- `mos-stdio.h`: `print_char`, `print_line`, `printf`
+
+`move_cursor` currently remains private inside `src/mos-stdio.c`.
 
 ## Requirements
 
