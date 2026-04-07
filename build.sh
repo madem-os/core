@@ -92,6 +92,9 @@ if [[ "${OS}" == "Darwin" ]]; then
         -fno-pie
         -fno-stack-protector
         -nostdlib
+        -Wall
+        -Wextra
+        -Werror=implicit-function-declaration
         -c
     )
 else
@@ -108,6 +111,9 @@ else
         -fno-stack-protector
         -nostdlib
         -nostartfiles
+        -Wall
+        -Wextra
+        -Werror=implicit-function-declaration
         -c
     )
 fi
