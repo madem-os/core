@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parent.parent
 EXPECTED_TEXT = "Hello, World!"
 QEMU_TIMEOUT_SECONDS = 5
 BOOT_WAIT_SECONDS = 1.0
-VGA_DUMP_BYTES = 160
+VGA_DUMP_BYTES = 80*1 # 1 line of VGA text (80 chars) * 1 byte per char
 
 
 def build_image() -> None:
@@ -84,12 +84,12 @@ def main() -> int:
     vga_text = read_vga_text()
 
     if EXPECTED_TEXT not in vga_text:
-        print("VGA assertion failed.", file=sys.stderr)
+        print("VGA assertion [FAILED].", file=sys.stderr)
         print(f"Expected to find: {EXPECTED_TEXT!r}", file=sys.stderr)
         print(f"Actual VGA text:   {vga_text!r}", file=sys.stderr)
         return 1
 
-    print(f"VGA assertion passed: found {EXPECTED_TEXT!r}")
+    print(f"VGA assertion [PASSED]: found {EXPECTED_TEXT!r} (Actual VGA text: {vga_text!r})")    
     return 0
 
 
