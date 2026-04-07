@@ -8,26 +8,44 @@ The project currently contains:
 - a tiny 32-bit freestanding kernel written in C
 - a linker script for placing the kernel at `0x00100000`
 - a `build.sh` script that builds a bootable disk image and runs it in QEMU
+- a `src/` + `include/` layout for additional kernel code
 
 At the moment, the kernel boots into protected mode and prints a message to VGA text mode.
 
 ## Project Layout
 
 - `bootS.asm`: boot sector + stage-2 loader
-- `kernel.c`: simple kernel entry and VGA text output
+- `kernel.c`: main kernel entry translation unit
+- `src/`: additional C source files compiled recursively into the kernel
+- `include/`: shared header files for the kernel code
 - `link.ld`: ELF linker script for the kernel
 - `build.sh`: build and run script
-- `bin/`: generated build artifacts such as `disk.img`, `kernel.elf`, and `kernel.bin`
+- `bin/`: generated build artifacts such as `disk.img`, `kernel.elf`, `kernel.bin`, and object files
 
 ## Build Output
 
 Running `build.sh` creates all generated files under `bin/`:
 
 - `bin/bootS.bin`
-- `bin/kernel.o`
+- `bin/obj/kernel.o`
+- `bin/obj/src/...`
 - `bin/kernel.elf`
 - `bin/kernel.bin`
 - `bin/disk.img`
+
+## Source Layout
+
+`kernel.c` stays as the main entry point and is always compiled.
+
+In addition, `build.sh` compiles every `*.c` file found under `src/`, including nested subdirectories, and links all of them into the final kernel.
+
+Headers can be placed under `include/` and included like this:
+
+```c
+#include "drivers/serial.h"
+```
+
+because `build.sh` adds `include/` to the compiler include path.
 
 ## Requirements
 
@@ -111,6 +129,24 @@ If the required Homebrew packages are installed, the script will use them automa
 - This is an educational hobby OS project, not a production OS.
 - The disk image is generated during the build and is ignored by git.
 - If QEMU GUI output has issues in some macOS environments, the image is still created in `bin/disk.img` and can be run manually.
+
+## C Project Structure Notes
+
+Using a `src/` directory is very common in C projects. It is not mandatory, but it is a standard and widely recognizable layout.
+
+A common setup is:
+
+- `src/` for implementation files
+- `include/` for headers
+- `tests/` for tests
+- `bin/` or `build/` for generated artifacts
+
+For larger C codebases, another common pattern is:
+
+- public headers under `include/`
+- private, module-local headers next to the `.c` files inside `src/`
+
+So yes, C projects often use `src/`, and many also use a separate `include/` folder. For this project, `kernel.c` at the root plus recursive `src/` and `include/` is a perfectly reasonable modern structure.
 
 Example manual run:
 

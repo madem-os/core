@@ -145,20 +145,36 @@ require_tool \
 
 BUILD_DIR="bin"
 BOOT_BIN="${BUILD_DIR}/bootS.bin"
-KERNEL_OBJ="${BUILD_DIR}/kernel.o"
+BUILD_OBJ_DIR="${BUILD_DIR}/obj"
+KERNEL_OBJ="${BUILD_OBJ_DIR}/kernel.o"
 KERNEL_ELF="${BUILD_DIR}/kernel.elf"
 KERNEL_BIN="${BUILD_DIR}/kernel.bin"
 DISK_IMAGE="${BUILD_DIR}/disk.img"
 DISK_SIZE="10M"
+INCLUDE_FLAGS=(
+    -Iinclude
+)
 
-mkdir -p "${BUILD_DIR}"
+mkdir -p "${BUILD_DIR}" "${BUILD_OBJ_DIR}"
 
 "${NASM}" -f bin bootS.asm -o "${BOOT_BIN}"
 "${TRUNCATE_BIN}" -s "${DISK_SIZE}" "${DISK_IMAGE}"
 dd if="${BOOT_BIN}" of="${DISK_IMAGE}" bs=512 conv=notrunc
 
-"${CC}" "${CFLAGS[@]}" kernel.c -o "${KERNEL_OBJ}"
-"${LD_BIN}" -m elf_i386 -T link.ld -o "${KERNEL_ELF}" "${KERNEL_OBJ}"
+"${CC}" "${INCLUDE_FLAGS[@]}" "${CFLAGS[@]}" kernel.c -o "${KERNEL_OBJ}"
+
+KERNEL_OBJECTS=("${KERNEL_OBJ}")
+
+if [[ -d src ]]; then
+    while IFS= read -r -d '' source_file; do
+        object_file="${BUILD_OBJ_DIR}/${source_file%.c}.o"
+        mkdir -p "$(dirname "${object_file}")"
+        "${CC}" "${INCLUDE_FLAGS[@]}" "${CFLAGS[@]}" "${source_file}" -o "${object_file}"
+        KERNEL_OBJECTS+=("${object_file}")
+    done < <(find src -type f -name '*.c' -print0)
+fi
+
+"${LD_BIN}" -m elf_i386 -T link.ld -o "${KERNEL_ELF}" "${KERNEL_OBJECTS[@]}"
 "${OBJCOPY_BIN}" -O binary "${KERNEL_ELF}" "${KERNEL_BIN}"
 "${TRUNCATE_BIN}" -s 1048576 "${KERNEL_BIN}"
 
