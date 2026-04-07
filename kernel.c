@@ -16,7 +16,7 @@ typedef uint32_t u32;
 
 uint16_t character_ptr = 0;
 
-void move_cursor_forward(void);
+void move_cursor(uint16_t amt, bool backwards);
 
 static inline void outb(u16 port, u8 value) {
     __asm__ volatile ("outb %0, %1" : : "a"(value), "Nd"(port));
