@@ -11,7 +11,7 @@
 
 static uint16_t character_ptr = 0;
 
-static void move_cursor(uint16_t amt, bool backwards) {
+void move_cursor(uint16_t amt, bool backwards) {
     uint16_t cursor_pos;
 
     write_port_byte(VGA_INDEX, 0x0F);
@@ -30,6 +30,29 @@ static void move_cursor(uint16_t amt, bool backwards) {
     write_port_byte(VGA_INDEX, 0x0E);
     write_port_byte(VGA_DATA, (uint8_t)((cursor_pos >> 8) & 0xFF));
 }
+
+static void move_cursorat(uint8_t row, uint8_t coulmn) {
+    uint16_t cursor_pos = row*80 + coulmn;
+
+    write_port_byte(VGA_INDEX, 0x0F);
+    write_port_byte(VGA_DATA, (uint8_t)(cursor_pos & 0xFF));
+    write_port_byte(VGA_INDEX, 0x0E);
+    write_port_byte(VGA_DATA, (uint8_t)((cursor_pos >> 8) & 0xFF));
+}
+
+
+int pull_cursor() {
+    uint16_t cursor_pos;
+    write_port_byte(VGA_INDEX, 0x0F);
+    cursor_pos = read_port_byte(VGA_DATA);
+    write_port_byte(VGA_INDEX, 0x0E);
+    cursor_pos |= ((uint16_t)read_port_byte(VGA_DATA)) << 8;
+
+    return cursor_pos;
+}
+
+
+
 
 void print_char(uint8_t ch) {
     VGA_MEMORY[character_ptr] = ch;
@@ -69,6 +92,24 @@ void printf(char* str) {
     while (str[str_pointer] != 0) {
         print_char(str[str_pointer]);
         str_pointer++;
+    }
+}
+void print_charat(uint8_t ch, uint8_t row, uint8_t coulmn) {
+    uint16_t cursor = row * 160 + coulmn * 2;
+    move_cursorat(row, coulmn+1);
+    VGA_MEMORY[cursor] = ch;
+}
+
+void print(char* str, uint8_t row, uint8_t coulmn) {
+    int str_pointer = 0;
+    while (str[str_pointer] != 0)  {
+        print_charat(str[str_pointer], row, coulmn);
+        str_pointer++;
+        coulmn++;
+        if (coulmn >= 80) {
+            row++;
+            coulmn = 0;
+        }
     }
 }
 

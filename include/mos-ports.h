@@ -6,5 +6,6 @@
 void write_port_byte(uint16_t port, uint8_t value);
 uint8_t read_port_byte(uint16_t port);
 void write_port_word(uint16_t port, uint16_t value);
+void io_wait(void);
 
 #endif

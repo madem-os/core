@@ -1,5 +1,6 @@
 // kernel.c
 #include "mos-stdio.h"
+#include "mos-cmd.h"
 #include <stdint.h>
 #include <stdbool.h>
 
@@ -32,7 +33,7 @@ void kernel_entry(void) {
 
 void kmain(void) {
     print_line("welcome to Madem-OS!");
-    modes_init();
+    command_line_mode();
 }
 
 
