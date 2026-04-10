@@ -20,27 +20,31 @@ bool keyboard_ring_is_empty(const struct keyboard_ring *ring) {
 }
 
 bool keyboard_ring_is_full(const struct keyboard_ring *ring) {
-    int normalized_tail = (int)ring->tail - (int)ring->head;
-    if (normalized_tail < 0) {
-        normalized_tail += (int)KEYBOARD_RING_CAPACITY;
-    }
-    return normalized_tail == (int)KEYBOARD_RING_CAPACITY - 1;
+    return (ring->tail - ring->head) == KEYBOARD_RING_CAPACITY;
 }
 
 bool keyboard_ring_push(struct keyboard_ring *ring, uint8_t value) {
+    size_t slot;
+
     if (keyboard_ring_is_full(ring)) {
         return false;
     }
-    ring->data[ring->tail] = value;
-    ring->tail = (ring->tail + 1) % KEYBOARD_RING_CAPACITY;
+
+    slot = ring->tail % KEYBOARD_RING_CAPACITY;
+    ring->data[slot] = value;
+    ring->tail++;
     return true;
 }
 
 bool keyboard_ring_pop(struct keyboard_ring *ring, uint8_t *value) {
+    size_t slot;
+
     if (keyboard_ring_is_empty(ring)) {
         return false;
     }
-    *value = ring->data[ring->head];
-    ring->head = (ring->head + 1) % KEYBOARD_RING_CAPACITY;
+
+    slot = ring->head % KEYBOARD_RING_CAPACITY;
+    *value = ring->data[slot];
+    ring->head++;
     return true;
 }

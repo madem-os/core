@@ -19,8 +19,8 @@
 
 struct keyboard_ring {
     uint8_t data[KEYBOARD_RING_CAPACITY];
-    size_t head;
-    size_t tail;
+    volatile size_t head;
+    volatile size_t tail;
 };
 
 void keyboard_ring_init(struct keyboard_ring *ring);
