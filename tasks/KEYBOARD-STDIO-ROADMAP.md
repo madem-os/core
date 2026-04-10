@@ -5,7 +5,7 @@
 Build a more standard input/output path for the OS before user mode by separating:
 
 - keyboard hardware handling
-- input buffering
+- input translation and buffering
 - console / TTY behavior
 - `stdin` / `stdout` / `stderr` style interfaces
 
@@ -20,7 +20,7 @@ That does not scale.
 The better order is:
 
 1. keyboard driver
-2. buffered input
+2. input system
 3. console / TTY behavior
 4. stream-like I/O interface
 5. built-in applications using that interface
@@ -48,31 +48,48 @@ Add a driver module, for example:
 
 Responsibilities:
 
-- read and process keyboard scancodes
-- maintain modifier state such as Shift
-- translate scancodes into characters or key events
+- read keyboard scancodes from hardware
+- own IRQ registration for the keyboard device
+- forward raw scancodes to the next input-processing layer
 - expose a small driver API
+
+The keyboard driver should not own:
+
+- terminal-style buffering
+- line editing
+- byte-stream semantics for `stdin`
+- cooked/raw terminal mode
 
 Do not leave keyboard logic inside `mos-stdio`.
 
-### Task 1.2: Add a ring buffer
+### Task 1.2: Add an input system
 
-Implement a fixed-size ring buffer owned by the keyboard driver.
+Add an input module, for example:
+
+- `src/input/input.c`
+- `include/input/input.h`
+
+Responsibilities:
+
+- receive raw scancodes from the keyboard driver
+- maintain translation state such as Shift
+- translate scancodes into terminal input bytes
+- own the input ring buffer
+- expose blocking and non-blocking reads of translated bytes
 
 Suggested first version:
 
-- buffer type: `char`
+- buffer type: `uint8_t`
+- semantics: terminal input bytes
 - size: 128 or 256 bytes
 - indices: `head`, `tail`
 - policy on full buffer: drop newest input for now
 
-Producer:
+The input system may produce:
 
-- keyboard interrupt handler
-
-Consumer:
-
-- main kernel code reading input
+- zero bytes for scancodes like Shift press/release
+- one byte for normal keys like `a`
+- multiple bytes for future special keys such as arrows or function keys
 
 ### Task 1.3: Keep the interrupt handler minimal
 
@@ -87,17 +104,20 @@ The interrupt handler should not:
 
 - print to VGA
 - perform line editing
+- translate into terminal bytes
 - own console behavior
 
 ### Task 1.4: Expose a blocking input API
 
 Add a simple kernel-facing API such as:
 
-- `bool keyboard_has_char(void);`
-- `char keyboard_get_char(void);`
-- `char keyboard_get_char_blocking(void);`
+- `bool input_has_byte(void);`
+- `bool input_read_byte(uint8_t *value);`
+- `uint8_t input_read_byte_blocking(void);`
 
-The first milestone does not need a generic device layer yet.
+The input system should expose terminal-style byte input. This is a better
+fit for a future TTY layer than buffering raw keyboard events in the terminal
+path.
 
 ## Milestone 2: Console / TTY Layer
 
@@ -115,9 +135,10 @@ Refactor toward a console-oriented module that owns:
 
 This can still use VGA text mode internally.
 
-### Task 2.2: Add a console input layer above the keyboard driver
+### Task 2.2: Add a console input layer above the input system
 
-Build a layer that consumes keyboard characters and provides terminal-like behavior:
+Build a layer that consumes terminal input bytes and provides terminal-like
+behavior:
 
 - character echo
 - backspace editing
@@ -207,7 +228,7 @@ They should not:
 
 Plan for two future modes:
 
-- raw mode: key events are delivered directly
+- raw mode: terminal input bytes are delivered directly without cooked editing
 - cooked mode: line editing and echo are handled by the console / TTY layer
 
 The shell should use cooked mode.
@@ -236,24 +257,26 @@ This should come after the first working input/output path, not before.
 Build this exact slice first:
 
 1. create `keyboard.c` and `keyboard.h`
-2. move scancode translation there
-3. add a ring buffer
-4. update IRQ1 to enqueue input instead of printing
-5. add `keyboard_get_char_blocking()`
-6. update the current command loop to read from the buffer and echo using console output
+2. create `input.c` and `input.h`
+3. move scancode translation into the input system
+4. add a byte ring buffer owned by the input system
+5. update IRQ1 to forward scancodes instead of printing
+6. add `input_read_byte_blocking()`
+7. update the current command loop to read from the input system and echo using console output
 
-This gives a real keyboard driver without overdesigning the system.
+This gives a real keyboard driver and a first input pipeline without
+overdesigning the system.
 
 ## Definition Of Done For The First Milestone
 
 The first milestone is complete when:
 
 - IRQ1 no longer prints directly
-- typed characters are buffered
-- the main loop consumes buffered characters
+- translated terminal input bytes are buffered
+- the main loop consumes buffered input bytes
 - normal typing works even if input briefly arrives faster than consumption
 - Enter and Backspace work in a basic, predictable way
-- keyboard and console responsibilities are split into separate modules
+- keyboard, input, and console responsibilities are split into separate modules
 
 ## Notes
 
