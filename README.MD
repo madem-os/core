@@ -190,3 +190,20 @@ Run one named check with:
 python3 tests/e2e.py boot_text
 python3 tests/e2e.py keyboard_irq
 ```
+
+## Unit Tests
+
+There is also a hosted unit-test runner under `tests/run-unit.sh`.
+
+It is intended for pure C modules that do not depend on port I/O, IRQ
+registration, or other freestanding kernel-only services.
+
+Run the current unit tests with:
+
+```bash
+tests/run-unit.sh
+```
+
+The first TDD slice includes `tests/unit/test_keyboard_ring.c` and a stubbed
+`src/drivers/keyboard_ring.c`, so the unit tests are expected to fail until the
+ring buffer implementation is completed.
