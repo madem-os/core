@@ -11,27 +11,36 @@
 #include "drivers/keyboard_ring.h"
 
 void keyboard_ring_init(struct keyboard_ring *ring) {
-    (void)ring;
+    ring->head = 0;
+    ring->tail = 0;
 }
 
 bool keyboard_ring_is_empty(const struct keyboard_ring *ring) {
-    (void)ring;
-    return false;
+    return ring->head == ring->tail;
 }
 
 bool keyboard_ring_is_full(const struct keyboard_ring *ring) {
-    (void)ring;
-    return false;
+    int normalized_tail = (int)ring->tail - (int)ring->head;
+    if (normalized_tail < 0) {
+        normalized_tail += (int)KEYBOARD_RING_CAPACITY;
+    }
+    return normalized_tail == (int)KEYBOARD_RING_CAPACITY - 1;
 }
 
 bool keyboard_ring_push(struct keyboard_ring *ring, uint8_t value) {
-    (void)ring;
-    (void)value;
-    return false;
+    if (keyboard_ring_is_full(ring)) {
+        return false;
+    }
+    ring->data[ring->tail] = value;
+    ring->tail = (ring->tail + 1) % KEYBOARD_RING_CAPACITY;
+    return true;
 }
 
 bool keyboard_ring_pop(struct keyboard_ring *ring, uint8_t *value) {
-    (void)ring;
-    (void)value;
-    return false;
+    if (keyboard_ring_is_empty(ring)) {
+        return false;
+    }
+    *value = ring->data[ring->head];
+    ring->head = (ring->head + 1) % KEYBOARD_RING_CAPACITY;
+    return true;
 }
