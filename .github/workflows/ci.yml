@@ -29,5 +29,8 @@ jobs:
       - name: Build image
         run: ./build.sh --build-only
 
+      - name: Run unit tests
+        run: ./tests/run-unit.sh
+
       - name: Run e2e tests
         run: python3 tests/e2e.py
