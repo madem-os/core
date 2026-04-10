@@ -1,3 +1,23 @@
+/*
+ * x86 Interrupt Descriptor Table Setup
+ *
+ * This file owns the in-memory IDT structure and the minimal routines needed
+ * to populate descriptor entries and load the table with lidt.
+ *
+ * Responsibilities in this file:
+ * - define the packed IDT entry and pointer layouts
+ * - clear the IDT during early boot
+ * - install handler addresses into specific vectors
+ * - load the active IDT pointer for the current CPU
+ *
+ * This file should not decide which device driver handles which IRQ, and it
+ * should not contain PIC policy or keyboard code. Those concerns belong to
+ * the IRQ dispatcher, PIC module, and drivers.
+ *
+ * The implementation assumes a 32-bit protected-mode kernel using the usual
+ * code segment selector at 0x08 for interrupt gates.
+ */
+
 #include <stdint.h>
 
 #include "arch/x86/idt.h"

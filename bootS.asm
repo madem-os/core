@@ -1,3 +1,22 @@
+; Boot Sector And Stage-2 Loader
+;
+; This assembly file owns the BIOS boot path for the project and the early
+; transition from real mode into the 32-bit kernel entry point.
+;
+; Responsibilities in this file:
+; - provide the 512-byte boot sector with the required boot signature
+; - load the rest of the stage-2 image from disk through BIOS services
+; - report disk read failures in the simplest possible way
+; - define a minimal GDT and switch the CPU into protected mode
+; - load the kernel image into memory and jump to its entry address
+;
+; This file should not contain kernel subsystem policy, driver behavior,
+; console abstractions, or longer-term runtime logic. Once execution reaches
+; the C kernel, those concerns move into the regular source tree.
+;
+; The current implementation assumes a BIOS boot on x86, legacy ATA port I/O,
+; a kernel loaded at 0x00100000, and a flat 32-bit protected-mode setup.
+
 [BITS 16]
 org 0x7C00
 
@@ -202,8 +221,4 @@ protected_mode_entry:
 	mov esp, 0x00090000
 	jmp 0x00100000
 	
-	
-	
-
 times 32768-($-$$) db 0 
-

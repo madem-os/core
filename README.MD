@@ -15,9 +15,13 @@ At the moment, the kernel boots into protected mode and prints a message to VGA 
 ## Project Layout
 
 - `bootS.asm`: boot sector + stage-2 loader
-- `kernel.c`: main kernel entry translation unit
-- `src/mos-ports.c`: low-level x86 port I/O helpers
-- `src/mos-stdio.c`: VGA text output helpers
+- `kernel.c`: main kernel entry translation unit and subsystem orchestration
+- `src/arch/x86/ports.c`: low-level x86 port I/O helpers
+- `src/arch/x86/idt.c`: IDT setup
+- `src/arch/x86/irq.c`: IRQ registration and dispatch
+- `src/arch/x86/pic.c`: PIC control
+- `src/console/console.c`: VGA text output helpers
+- `src/drivers/keyboard.c`: keyboard driver and scancode handling
 - `src/`: additional C source files compiled recursively into the kernel
 - `include/`: shared header files for the kernel code
 - `link.ld`: ELF linker script for the kernel
@@ -51,10 +55,10 @@ because `build.sh` adds `include/` to the compiler include path.
 
 Current shared modules include:
 
-- `mos-ports.h`: `read_port_byte`, `write_port_byte`, `write_port_word`
-- `mos-stdio.h`: `print_char`, `print_line`, `printf`
+- `arch/x86/ports.h`: `read_port_byte`, `write_port_byte`, `write_port_word`
+- `console/console.h`: `console_write_char`, `console_write_line`, `console_write`
 
-`move_cursor` currently remains private inside `src/mos-stdio.c`.
+Cursor movement remains private inside `src/console/console.c`.
 
 ## Requirements
 

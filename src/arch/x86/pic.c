@@ -1,7 +1,25 @@
+/*
+ * x86 8259 PIC Control
+ *
+ * This file owns the legacy programmable interrupt controller setup used by
+ * the early kernel before any APIC-based interrupt model exists.
+ *
+ * Responsibilities in this file:
+ * - remap the master and slave PIC away from exception vectors
+ * - mask and unmask individual IRQ lines
+ * - acknowledge completed IRQ handling with end-of-interrupt commands
+ *
+ * This file should not install IDT entries or contain driver-specific
+ * keyboard logic. It only manages the PIC hardware through x86 I/O ports.
+ *
+ * The implementation assumes the standard dual 8259 layout with IRQs remapped
+ * to vectors 0x20-0x2F and the slave connected on IRQ2.
+ */
+
 #include <stdint.h>
 
 #include "arch/x86/pic.h"
-#include "mos-ports.h"
+#include "arch/x86/ports.h"
 
 #define PIC1_COMMAND 0x20
 #define PIC1_DATA 0x21

@@ -1,3 +1,23 @@
+/*
+ * x86 IRQ Registration And Dispatch
+ *
+ * This file owns the mapping from hardware IRQ lines to IDT vectors and the
+ * dispatch path that invokes installed C handlers when an IRQ fires.
+ *
+ * Responsibilities in this file:
+ * - store one C callback per legacy PIC IRQ line
+ * - install IRQ stubs into the IDT at the remapped vector range
+ * - dispatch from the assembly stub into the registered handler
+ * - send end-of-interrupt notifications through the PIC module
+ *
+ * Device drivers should register handlers here, but they should not send
+ * EOIs directly. Raw IDT entry details remain in idt.c, while PIC signaling
+ * policy remains in pic.c.
+ *
+ * The current implementation targets the 16 legacy PIC IRQ lines beginning
+ * at vector 0x20 after remapping.
+ */
+
 #include <stdint.h>
 
 #include "arch/x86/idt.h"
