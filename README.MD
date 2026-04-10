@@ -165,17 +165,24 @@ qemu-system-i386 -m 512 -drive file=bin/disk.img,format=raw
 
 ## E2E Test
 
-There is a simple end-to-end VGA test under `tests/e2e_vga.py`.
+There is a single end-to-end runner under `tests/e2e.py`.
 
 It does the following:
 
 1. runs `./build.sh --build-only`
-2. boots `bin/disk.img` in headless QEMU
-3. reads the VGA text buffer through the QEMU monitor
-4. asserts that the expected text appears
+2. boots `bin/disk.img` in headless QEMU once
+3. runs multiple checks sequentially against the same live QEMU session
+4. uses the QEMU monitor to inspect VGA memory and inject keyboard input
 
-Run it with:
+Run all e2e checks with:
 
 ```bash
-python3 tests/e2e_vga.py
+python3 tests/e2e.py
+```
+
+Run one named check with:
+
+```bash
+python3 tests/e2e.py boot_text
+python3 tests/e2e.py keyboard_irq
 ```

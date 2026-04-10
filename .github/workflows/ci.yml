@@ -29,5 +29,5 @@ jobs:
       - name: Build image
         run: ./build.sh --build-only
 
-      - name: Run VGA e2e test
-        run: python3 tests/e2e_vga.py
+      - name: Run e2e tests
+        run: python3 tests/e2e.py
