@@ -58,6 +58,8 @@ static void test_process_init_clears_fd_slots(void) {
     EXPECT_TRUE(process.fds[0].object == NULL);
     EXPECT_TRUE(process.fds[1].object == NULL);
     EXPECT_TRUE(process.fds[2].object == NULL);
+    EXPECT_TRUE(process.entry_point == 0u);
+    EXPECT_TRUE(process.user_stack_top == 0u);
 }
 
 static void test_process_set_tty_stdio_wires_all_three_stdio_slots(void) {

@@ -18,6 +18,8 @@
 #ifndef KERNEL_PROCESS_H
 #define KERNEL_PROCESS_H
 
+#include <stdint.h>
+
 enum fd_kind {
     FD_KIND_NONE = 0,
     FD_KIND_TTY = 1
@@ -30,6 +32,8 @@ struct file_descriptor {
 
 struct process {
     struct file_descriptor fds[3];
+    uintptr_t entry_point;
+    uintptr_t user_stack_top;
 };
 
 void process_init(struct process *process);

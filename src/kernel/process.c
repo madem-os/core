@@ -27,6 +27,9 @@ void process_init(struct process *process) {
         process->fds[index].kind = FD_KIND_NONE;
         process->fds[index].object = NULL;
     }
+
+    process->entry_point = 0;
+    process->user_stack_top = 0;
 }
 
 void process_set_tty_stdio(struct process *process, void *tty) {

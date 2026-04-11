@@ -174,6 +174,15 @@ if [[ -d src ]]; then
     done < <(find src -type f -name '*.c' -print0)
 fi
 
+if [[ -d user ]]; then
+    while IFS= read -r -d '' source_file; do
+        object_file="${BUILD_OBJ_DIR}/${source_file%.c}.o"
+        mkdir -p "$(dirname "${object_file}")"
+        "${CC}" "${INCLUDE_FLAGS[@]}" "${CFLAGS[@]}" "${source_file}" -o "${object_file}"
+        KERNEL_OBJECTS+=("${object_file}")
+    done < <(find user -type f -name '*.c' -print0)
+fi
+
 "${LD_BIN}" -m elf_i386 -T link.ld -o "${KERNEL_ELF}" "${KERNEL_OBJECTS[@]}"
 "${OBJCOPY_BIN}" -O binary "${KERNEL_ELF}" "${KERNEL_BIN}"
 "${TRUNCATE_BIN}" -s 1048576 "${KERNEL_BIN}"

@@ -98,6 +98,10 @@ int 0x10
 
 jmp switch_to_protected_mode
 
+tss_entry:
+    times 104 db 0
+tss_end:
+
 gdt_start:
     dd 0x0
     dd 0x0
@@ -116,6 +120,28 @@ gdt_start:
     db 10010010b
     db 11001111b
     db 0x00
+
+    dw 0xffff ; user code segment
+    dw 0x0000
+    db 0x00
+    db 11111010b
+    db 11001111b
+    db 0x00
+
+    dw 0xffff ; user data segment
+    dw 0x0000
+    db 0x00
+    db 11110010b
+    db 11001111b
+    db 0x00
+
+    dw tss_end - tss_entry - 1 ; TSS descriptor
+    dw 0x0000
+    db 0x00
+    db 10001001b
+    db 0x00
+    db 0x00
+tss_descriptor:
 gdt_end:
 
 gdt_descriptor:
@@ -140,6 +166,17 @@ protected_mode_entry:
     mov ss, ax
     
     mov esp, 0x7c00
+    mov eax, tss_entry
+    mov word [tss_descriptor - 6], ax
+    shr eax, 16
+    mov byte [tss_descriptor - 4], al
+    shr eax, 8
+    mov byte [tss_descriptor - 1], al
+    mov dword [tss_entry + 4], 0x00090000
+    mov word [tss_entry + 8], 0x10
+    mov word [tss_entry + 102], tss_end - tss_entry
+    mov ax, 0x28
+    ltr ax
     
 	jmp next
     

@@ -138,6 +138,12 @@ def test_boot_text(session: QemuSession) -> None:
             f"Actual VGA text: {vga_text!r}"
         )
 
+    if "user mode ready" not in vga_text:
+        raise AssertionError(
+            "Missing expected user mode startup text.\n"
+            f"Actual VGA text: {vga_text!r}"
+        )
+
 def test_keyboard_input(session: QemuSession) -> None:
     before = session.dump_vga_text()
     session.send_key("q")

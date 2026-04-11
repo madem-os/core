@@ -28,12 +28,14 @@
 #include "arch/x86/drivers/keyboard.h"
 #include "arch/x86/drivers/vga_display.h"
 #include "arch/x86/syscall.h"
+#include "arch/x86/usermode.h"
 #include "console/display.h"
 #include "console/text_console.h"
 #include "input/input.h"
 #include "kernel/io.h"
 #include "kernel/process.h"
 #include "tty/tty.h"
+#include "user/entry.h"
 
 #if defined(__ELF__)
 #define KERNEL_ENTRY_SECTION __attribute__((section(".text.entry")))
@@ -65,6 +67,7 @@ struct tty global_tty;
 struct text_console global_text_console;
 struct display vga_display;
 struct process kernel_process;
+static uint8_t user_stack[4096];
 
 char buf[256];
 
@@ -87,13 +90,15 @@ void kmain(void) {
     );
     process_init(&kernel_process);
     process_set_tty_stdio(&kernel_process, &global_tty);
+    kernel_process.entry_point = (uintptr_t)user_main;
+    kernel_process.user_stack_top = (uintptr_t)(user_stack + sizeof(user_stack));
     process_set_current(&kernel_process);
     
     asm volatile("sti");
 
     kwrite(1, "welcome to Madem-OS!\n", 21);
-
-    while (1) {
-        (void)kread(0, buf, 200);
-    }
+    x86_enter_usermode(
+        (uint32_t)kernel_process.entry_point,
+        (uint32_t)kernel_process.user_stack_top
+    );
 }
