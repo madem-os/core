@@ -150,6 +150,8 @@ USER_BUILD_DIR="${BUILD_DIR}/user"
 USER_BUILD_OBJ_DIR="${BUILD_OBJ_DIR}/user"
 GENERATED_DIR="${BUILD_DIR}/generated"
 GENERATED_OBJ_DIR="${BUILD_OBJ_DIR}/generated"
+DEMO_DIR="docs"
+DEMO_ASSET_DIR="${DEMO_DIR}/assets"
 KERNEL_OBJ="${BUILD_OBJ_DIR}/kernel.o"
 KERNEL_ELF="${BUILD_DIR}/kernel.elf"
 KERNEL_BIN="${BUILD_DIR}/kernel.bin"
@@ -159,7 +161,7 @@ INCLUDE_FLAGS=(
     -Iinclude
 )
 
-mkdir -p "${BUILD_DIR}" "${BUILD_OBJ_DIR}" "${USER_BUILD_DIR}" "${USER_BUILD_OBJ_DIR}" "${GENERATED_DIR}" "${GENERATED_OBJ_DIR}"
+mkdir -p "${BUILD_DIR}" "${BUILD_OBJ_DIR}" "${USER_BUILD_DIR}" "${USER_BUILD_OBJ_DIR}" "${GENERATED_DIR}" "${GENERATED_OBJ_DIR}" "${DEMO_ASSET_DIR}"
 
 "${NASM}" -f bin bootS.asm -o "${BOOT_BIN}"
 "${TRUNCATE_BIN}" -s "${DISK_SIZE}" "${DISK_IMAGE}"
@@ -272,6 +274,7 @@ generate_user_program_registry
 "${TRUNCATE_BIN}" -s 1048576 "${KERNEL_BIN}"
 
 dd if="${KERNEL_BIN}" of="${DISK_IMAGE}" bs=512 seek=64 conv=notrunc
+cp "${DISK_IMAGE}" "${DEMO_ASSET_DIR}/mademos.img"
 
 if [[ "${RUN_QEMU}" == "1" ]]; then
     "${QEMU_BIN}" -m 512 -drive file="${DISK_IMAGE}",format=raw

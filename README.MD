@@ -216,6 +216,21 @@ Running `build.sh` creates all generated files under `bin/`:
 - `bin/kernel.elf`
 - `bin/kernel.bin`
 - `bin/disk.img`
+- `bin/user/*.elf`
+
+It also refreshes the browser-demo disk image at:
+
+- `docs/assets/mademos.img`
+
+## Browser Demo
+
+The repository now includes a static browser demo under:
+
+- `docs/index.html`
+
+It boots the current `disk.img` through `v86`, so the demo tracks the normal
+OS build instead of a hand-maintained artifact. This is suitable for GitHub
+Pages hosting.
 
 ## Requirements
 

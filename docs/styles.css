@@ -1,0 +1,138 @@
+:root {
+    color-scheme: dark;
+    --bg: #121212;
+    --panel: #1d1d1d;
+    --panel-2: #262626;
+    --text: #f2efe8;
+    --muted: #c2b7a2;
+    --accent: #d8b26e;
+    --border: #443a29;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+    color: var(--text);
+    background:
+        radial-gradient(circle at top, rgba(216, 178, 110, 0.15), transparent 28rem),
+        linear-gradient(180deg, #1b1917 0%, var(--bg) 100%);
+}
+
+.page {
+    width: min(1120px, calc(100vw - 2rem));
+    margin: 0 auto;
+    padding: 2rem 0 3rem;
+}
+
+.hero {
+    margin-bottom: 1.5rem;
+}
+
+.eyebrow {
+    margin: 0 0 0.5rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--accent);
+    font-size: 0.8rem;
+}
+
+.hero h1 {
+    margin: 0;
+    font-size: clamp(2rem, 4.5vw, 3.5rem);
+    line-height: 1;
+}
+
+.lede {
+    max-width: 46rem;
+    color: var(--muted);
+    font-size: 1.05rem;
+    line-height: 1.6;
+}
+
+.toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+}
+
+.toolbar button {
+    border: 1px solid var(--border);
+    border-radius: 0.8rem;
+    background: var(--panel-2);
+    color: var(--text);
+    font: inherit;
+    padding: 0.8rem 1rem;
+    cursor: pointer;
+}
+
+.toolbar button:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+.status {
+    color: var(--muted);
+}
+
+.layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 19rem;
+    gap: 1rem;
+}
+
+.screen-card,
+.notes {
+    border: 1px solid var(--border);
+    border-radius: 1rem;
+    background: rgba(29, 29, 29, 0.92);
+}
+
+.screen-card {
+    padding: 1rem;
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.35);
+}
+
+.screen {
+    min-height: 30rem;
+    overflow: auto;
+    background: #0b0b0b;
+    border-radius: 0.5rem;
+}
+
+.screen canvas {
+    max-width: 100%;
+}
+
+.notes {
+    padding: 1rem;
+}
+
+.notes h2 {
+    margin-top: 0;
+    font-size: 1rem;
+}
+
+.notes p {
+    color: var(--muted);
+    line-height: 1.5;
+}
+
+.notes a {
+    color: var(--accent);
+}
+
+code {
+    font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
+}
+
+@media (max-width: 920px) {
+    .layout {
+        grid-template-columns: 1fr;
+    }
+}
