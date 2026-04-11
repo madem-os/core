@@ -34,7 +34,7 @@ function bootDemo() {
         screen_container: screenContainer,
         bios: { url: BIOS_URL },
         vga_bios: { url: VGA_BIOS_URL },
-        hda: { url: DISK_IMAGE_URL, async: true },
+        hda: { url: DISK_IMAGE_URL },
         boot_order: 0x132,
         autostart: true,
     });
@@ -43,6 +43,13 @@ function bootDemo() {
         setStatus("Running");
         screenContainer.tabIndex = 0;
         screenContainer.focus();
+    });
+
+    emulator.add_listener("download-progress", (event) => {
+        if (event && typeof event.loaded === "number" && typeof event.total === "number" && event.total > 0) {
+            const percent = Math.floor((event.loaded / event.total) * 100);
+            setStatus(`Loading ${percent}%`);
+        }
     });
 }
 

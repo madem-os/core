@@ -103,10 +103,20 @@ body {
     overflow: auto;
     background: #0b0b0b;
     border-radius: 0.5rem;
+    padding: 0.5rem;
 }
 
 .screen canvas {
     max-width: 100%;
+}
+
+.screen-text {
+    white-space: pre;
+    font: 14px/14px "IBM Plex Mono", "SFMono-Regular", monospace;
+}
+
+.screen-canvas {
+    display: none;
 }
 
 .notes {
