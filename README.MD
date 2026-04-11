@@ -8,6 +8,10 @@ TTY stack, renders terminal output through a text console layered over a
 generic display interface with an x86 VGA backend, and runs a first built-in
 ring-3 user process through a minimal syscall ABI.
 
+Live demo:
+
+- [https://madem-os.github.io/core/](https://madem-os.github.io/core/)
+
 ## Current Status
 
 The current stack is:
@@ -231,6 +235,10 @@ The repository now includes a static browser demo under:
 It boots the current `disk.img` through `v86`, so the demo tracks the normal
 OS build instead of a hand-maintained artifact. This is suitable for GitHub
 Pages hosting.
+
+Live demo:
+
+- [https://madem-os.github.io/core/](https://madem-os.github.io/core/)
 
 ## Requirements
 
