@@ -27,6 +27,8 @@ run_test() {
         "${ROOT}/src/input/input_ring.c" \
         "${ROOT}/src/input/input.c" \
         "${ROOT}/src/tty/tty.c" \
+        "${ROOT}/src/console/display.c" \
+        "${ROOT}/src/console/text_console.c" \
         "${ROOT}/tests/unit/test.c" \
         "${source_file}" \
         -o "${output_file}"
