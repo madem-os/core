@@ -4,8 +4,9 @@ MademOS is a hobby x86 operating system project built from scratch.
 
 It currently boots through a custom NASM bootloader into a 32-bit freestanding
 kernel, handles keyboard input through IRQs, routes input through an input and
-TTY stack, and renders terminal output through a text console layered over a
-generic display interface with an x86 VGA backend.
+TTY stack, renders terminal output through a text console layered over a
+generic display interface with an x86 VGA backend, and runs a first built-in
+ring-3 user process through a minimal syscall ABI.
 
 ## Current Status
 
@@ -19,15 +20,109 @@ The current stack is:
 - TTY raw/cooked behavior
 - text console output layer
 - x86 VGA display backend
+- minimal process + fd model
+- kernel `read` / `write` dispatch
+- `int 0x80` syscall entry
+- ring 3 transition
+- one built-in terminal user program
 
-The current kernel boots, initializes the stack above, writes through the TTY
-path, and is covered by both hosted unit tests and QEMU end-to-end tests.
+The current kernel boots, initializes the stack above, enters user mode, and is
+covered by both hosted unit tests and QEMU end-to-end tests.
+
+## Architecture Diagram
+
+```text
+                      +-----------------------+
+                      |   Built-in User App   |
+                      |   user/apps/echo_line |
+                      +-----------+-----------+
+                                  |
+                     read/write via int 0x80
+                                  |
+                      +-----------v-----------+
+                      |   x86 Syscall Entry   |
+                      | src/arch/x86/syscall  |
+                      +-----------+-----------+
+                                  |
+                      +-----------v-----------+
+                      | Kernel Syscall Layer  |
+                      | src/kernel/syscall    |
+                      +-----------+-----------+
+                                  |
+              +-------------------+-------------------+
+              |                                       |
+      +-------v--------+                      +-------v--------+
+      |  Kernel I/O    |                      | Process / FDs  |
+      | src/kernel/io  |<-------------------->|src/kernel/proc |
+      +-------+--------+                      +----------------+
+              |
+      fd 0/1/2 -> active TTY
+              |
+      +-------v--------+
+      |      TTY       |
+      |   src/tty      |
+      +---+--------+---+
+          |        |
+   input/read      | output/write
+          |        |
+   +------v--+   +-v------------------+
+   | Input   |   |   Text Console     |
+   | Layer   |   | src/console/text   |
+   |src/input|   +---------+----------+
+   +----^----+             |
+        |                  v
+        |       +----------+-----------+
+        |       | Display Abstraction  |
+        |       | src/console/display  |
+        |       +----------+-----------+
+        |                  |
+        |                  v
+        |       +----------+-----------+
+        |       | x86 VGA Display      |
+        |       | arch/x86/drivers/vga |
+        |       +----------+-----------+
+        |                  |
+        |                  v
+        |         VGA text buffer + cursor
+
+
+   Keyboard path:
+
+   PS/2 keyboard IRQ1
+        |
+        v
+   arch/x86/drivers/keyboard
+        |
+        v
+   input_handle_scancode(...)
+```
 
 ## Milestones
 
-### 2026-04-11: TTY + Text Console Stack
+### 2026-04-11: Minimal Usermode Vertical Slice
 
-Today’s milestone is the first correct terminal architecture for the project:
+Today’s milestone completes the first end-to-end usermode path:
+
+- one built-in ring-3 process
+- `int 0x80` syscalls for `read` and `write`
+- stdin/stdout/stderr wired through the kernel fd/process layer
+- user output rendered through `tty -> text_console -> vga_display`
+- user input delivered through `keyboard -> input -> tty -> read`
+
+The current built-in user program writes a startup message and then acts as a
+simple terminal echo loop.
+
+Relevant design docs:
+
+- [tasks/USERMODE-MINIMAL-PLAN.md](tasks/USERMODE-MINIMAL-PLAN.md)
+- [tasks/USERMODE-STAGE-1-KERNEL-IO.md](tasks/USERMODE-STAGE-1-KERNEL-IO.md)
+- [tasks/USERMODE-STAGE-2-SYSCALLS.md](tasks/USERMODE-STAGE-2-SYSCALLS.md)
+- [tasks/USERMODE-STAGE-3-RING3-PROCESS.md](tasks/USERMODE-STAGE-3-RING3-PROCESS.md)
+
+### Earlier Milestone: TTY + Text Console Stack
+
+This milestone introduced the first correct terminal architecture for the
+project:
 
 - keyboard IRQs feed the input system
 - the input system translates scancodes into terminal bytes
@@ -41,7 +136,6 @@ Relevant design docs:
 - [tasks/TTY-READ-DESIGN.md](tasks/TTY-READ-DESIGN.md)
 - [tasks/TTY-MODULE-TDD.md](tasks/TTY-MODULE-TDD.md)
 - [tasks/CONSOLE-DRIVER-DESIGN.md](tasks/CONSOLE-DRIVER-DESIGN.md)
-- [tasks/USERMODE-MINIMAL-PLAN.md](tasks/USERMODE-MINIMAL-PLAN.md)
 
 ### Earlier Milestone: First User Input Path
 
@@ -82,9 +176,11 @@ Relevant notes:
 - `link.ld`: linker script for the kernel image
 - `src/arch/x86/`: x86 architecture support code
 - `src/arch/x86/drivers/`: x86-specific hardware drivers
+- `src/kernel/`: kernel process, I/O, and syscall dispatch layers
 - `src/input/`: terminal input translation and buffering
 - `src/tty/`: TTY behavior and terminal I/O semantics
 - `src/console/`: generic display and text-console layers
+- `user/`: built-in userspace code and syscall wrappers
 - `include/`: headers for the kernel code
 - `tests/`: hosted unit tests and QEMU e2e tests
 - `tasks/`: design docs and engineering notes
@@ -98,11 +194,18 @@ Relevant notes:
 - `src/arch/x86/ports.c`: raw x86 port I/O helpers
 - `src/arch/x86/drivers/keyboard.c`: PS/2 keyboard IRQ driver
 - `src/arch/x86/drivers/vga_display.c`: x86 VGA text-mode display backend
+- `src/arch/x86/syscall.c`: x86 `int 0x80` entry path
+- `src/arch/x86/usermode.c`: x86 ring-3 entry helper
 - `src/input/input.c`: scancode-to-byte translation and buffering
 - `src/input/input_ring.c`: byte ring buffer for the input layer
+- `src/kernel/process.c`: minimal process + stdio descriptor wiring
+- `src/kernel/io.c`: kernel `kread` / `kwrite`
+- `src/kernel/syscall.c`: generic syscall dispatcher
 - `src/tty/tty.c`: raw/cooked TTY behavior and TTY writes
 - `src/console/text_console.c`: terminal-visible output behavior
 - `src/console/display.c`: generic display object initialization
+- `user/lib/syscall.c`: userspace syscall wrappers
+- `user/apps/echo_line.c`: first built-in user program
 
 ## Build Output
 
@@ -207,6 +310,12 @@ python3 tests/e2e.py boot_text
 python3 tests/e2e.py keyboard_input
 ```
 
+The current e2e flow verifies:
+
+- the boot banner appears
+- user mode starts and prints `user mode ready`
+- keyboard input reaches the running user process
+
 ### Unit Tests
 
 Hosted unit tests live under `tests/unit/` and run via:
@@ -219,6 +328,8 @@ They currently cover:
 
 - input translation
 - input ring buffer behavior
+- kernel process and fd dispatch
+- generic syscall dispatch
 - TTY behavior
 - text console behavior
 
@@ -227,5 +338,5 @@ They currently cover:
 - This is an educational hobby OS project, not a production OS.
 - `src/` + `include/` is the current C project layout.
 - `bin/` is generated and ignored by git.
-- The next major direction is minimal user mode with syscalls and one terminal
-  process, described in [tasks/USERMODE-MINIMAL-PLAN.md](tasks/USERMODE-MINIMAL-PLAN.md).
+- The current usermode milestone uses a shared address space. It proves ring 3
+  execution and syscalls, not full process isolation yet.
