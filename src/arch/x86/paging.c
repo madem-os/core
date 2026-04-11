@@ -19,48 +19,25 @@
 #include <stdint.h>
 
 #include "arch/x86/paging.h"
-
-#define PAGE_SIZE 4096u
-#define PAGE_TABLE_ENTRIES 1024u
-#define PAGE_DIRECTORY_ENTRIES 1024u
-#define IDENTITY_MAP_BYTES (16u * 1024u * 1024u)
-#define IDENTITY_MAP_TABLE_COUNT (IDENTITY_MAP_BYTES / (PAGE_SIZE * PAGE_TABLE_ENTRIES))
-
-#define PAGE_PRESENT 0x001u
-#define PAGE_WRITABLE 0x002u
-#define PAGE_USER 0x004u
+#include "kernel/bootstrap_paging.h"
 
 extern void x86_load_page_directory(const void *page_directory);
 extern void x86_enable_paging(void);
 
-static uint32_t kernel_page_directory[PAGE_DIRECTORY_ENTRIES] __attribute__((aligned(PAGE_SIZE)));
-static uint32_t kernel_page_tables[IDENTITY_MAP_TABLE_COUNT][PAGE_TABLE_ENTRIES]
-    __attribute__((aligned(PAGE_SIZE)));
+static uint32_t kernel_page_directory[X86_PAGE_DIRECTORY_ENTRIES]
+    __attribute__((aligned(X86_PAGE_SIZE)));
+static uint32_t kernel_page_tables[BOOTSTRAP_IDENTITY_MAP_TABLE_COUNT][X86_PAGE_TABLE_ENTRIES]
+    __attribute__((aligned(X86_PAGE_SIZE)));
 
 void paging_init_identity(void) {
-    uint32_t table_index;
-    uint32_t entry_index;
-    uint32_t physical_address;
-
-    for (table_index = 0; table_index < PAGE_DIRECTORY_ENTRIES; table_index++) {
-        kernel_page_directory[table_index] = 0;
-    }
-
-    physical_address = 0;
-
-    for (table_index = 0; table_index < IDENTITY_MAP_TABLE_COUNT; table_index++) {
-        for (entry_index = 0; entry_index < PAGE_TABLE_ENTRIES; entry_index++) {
-            kernel_page_tables[table_index][entry_index] =
-                physical_address | PAGE_PRESENT | PAGE_WRITABLE | PAGE_USER;
-            physical_address += PAGE_SIZE;
-        }
-
-        kernel_page_directory[table_index] =
-            (uint32_t)kernel_page_tables[table_index] |
-            PAGE_PRESENT |
-            PAGE_WRITABLE |
-            PAGE_USER;
-    }
+    bootstrap_paging_build_identity(
+        kernel_page_directory,
+        &kernel_page_tables[0][0],
+        BOOTSTRAP_IDENTITY_MAP_TABLE_COUNT,
+        (uint32_t)(uintptr_t)&kernel_page_tables[0][0],
+        0,
+        X86_PAGE_PRESENT | X86_PAGE_WRITABLE | X86_PAGE_USER
+    );
 
     x86_load_page_directory(kernel_page_directory);
     x86_enable_paging();

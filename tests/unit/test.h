@@ -37,6 +37,26 @@ static inline void test_fail_u8(
     test_failures_total++;
 }
 
+static inline void test_fail_u32(
+    const char *expr,
+    uint32_t expected,
+    uint32_t actual,
+    const char *file,
+    int line
+) {
+    fprintf(
+        stderr,
+        "%s:%d: assertion failed: %s (expected=%u actual=%u)\n",
+        file,
+        line,
+        expr,
+        (unsigned int)expected,
+        (unsigned int)actual
+    );
+    test_current_failed = 1;
+    test_failures_total++;
+}
+
 #define EXPECT_TRUE(expr) \
     do { \
         if (!(expr)) { \
@@ -57,6 +77,21 @@ static inline void test_fail_u8(
         uint8_t test_actual_value = (uint8_t)(actual); \
         if (test_expected_value != test_actual_value) { \
             test_fail_u8( \
+                #actual, \
+                test_expected_value, \
+                test_actual_value, \
+                __FILE__, \
+                __LINE__ \
+            ); \
+        } \
+    } while (0)
+
+#define EXPECT_EQ_U32(expected, actual) \
+    do { \
+        uint32_t test_expected_value = (uint32_t)(expected); \
+        uint32_t test_actual_value = (uint32_t)(actual); \
+        if (test_expected_value != test_actual_value) { \
+            test_fail_u32( \
                 #actual, \
                 test_expected_value, \
                 test_actual_value, \

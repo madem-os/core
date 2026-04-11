@@ -29,6 +29,7 @@ run_test() {
         "${ROOT}/src/tty/tty.c" \
         "${ROOT}/src/console/display.c" \
         "${ROOT}/src/console/text_console.c" \
+        "${ROOT}/src/kernel/bootstrap_paging.c" \
         "${ROOT}/src/kernel/process.c" \
         "${ROOT}/src/kernel/io.c" \
         "${ROOT}/src/kernel/syscall.c" \
