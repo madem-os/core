@@ -31,6 +31,7 @@ run_test() {
         "${ROOT}/src/console/text_console.c" \
         "${ROOT}/src/kernel/bootstrap_paging.c" \
         "${ROOT}/src/kernel/process.c" \
+        "${ROOT}/src/kernel/vm.c" \
         "${ROOT}/src/kernel/io.c" \
         "${ROOT}/src/kernel/syscall.c" \
         "${ROOT}/tests/unit/test.c" \

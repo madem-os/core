@@ -30,6 +30,13 @@ void process_init(struct process *process) {
 
     process->entry_point = 0;
     process->user_stack_top = 0;
+    process->vm_space.user_base = 0;
+    process->vm_space.user_limit = 0;
+    process->vm_space.text_base = 0;
+    process->vm_space.text_size = 0;
+    process->vm_space.stack_top = 0;
+    process->vm_space.stack_size = 0;
+    process->vm_space.page_directory = NULL;
 }
 
 void process_set_tty_stdio(struct process *process, void *tty) {

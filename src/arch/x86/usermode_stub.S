@@ -26,6 +26,7 @@ x86_enter_usermode:
 1:
     jmp 1b
 
+    .section .user.text, "ax", @progbits
     .global x86_user_entry_stub
 x86_user_entry_stub:
     mov $0x23, %ax

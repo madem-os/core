@@ -20,6 +20,8 @@
 
 #include <stdint.h>
 
+#include "kernel/vm.h"
+
 enum fd_kind {
     FD_KIND_NONE = 0,
     FD_KIND_TTY = 1
@@ -34,6 +36,8 @@ struct process {
     struct file_descriptor fds[3];
     uintptr_t entry_point;
     uintptr_t user_stack_top;
+    /* Process-owned VM contract and page-directory state for isolated user mappings. */
+    struct vm_space vm_space;
 };
 
 void process_init(struct process *process);

@@ -42,3 +42,7 @@ void paging_init_identity(void) {
     x86_load_page_directory(kernel_page_directory);
     x86_enable_paging();
 }
+
+void paging_load_page_directory(const void *page_directory) {
+    x86_load_page_directory(page_directory);
+}

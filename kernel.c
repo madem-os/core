@@ -35,8 +35,8 @@
 #include "input/input.h"
 #include "kernel/io.h"
 #include "kernel/process.h"
+#include "kernel/vm.h"
 #include "tty/tty.h"
-#include "user/entry.h"
 
 #if defined(__ELF__)
 #define KERNEL_ENTRY_SECTION __attribute__((section(".text.entry")))
@@ -50,7 +50,6 @@ struct tty global_tty;
 struct text_console global_text_console;
 struct display vga_display;
 struct process kernel_process;
-static uint8_t user_stack[4096];
 
 char buf[256];
 
@@ -72,9 +71,18 @@ void kmain(void) {
     );
     process_init(&kernel_process);
     process_set_tty_stdio(&kernel_process, &global_tty);
-    kernel_process.entry_point = (uintptr_t)user_main;
-    kernel_process.user_stack_top = (uintptr_t)(user_stack + sizeof(user_stack));
     process_set_current(&kernel_process);
+    if (
+        vm_init_process(
+            &kernel_process,
+            vm_default_runtime(),
+            vm_default_user_image()
+        ) != 0
+    ) {
+        kwrite(1, "vm init failed\n", 15);
+        for (;;) {
+        }
+    }
 
     x86_enable_interrupts();
 
@@ -82,6 +90,7 @@ void kmain(void) {
     kwrite(1, "kernel_entry=", 13);
     kwrite_hex32(1, (uint32_t)(uintptr_t)kernel_entry);
     kwrite(1, "\n", 1);
+    vm_activate_process(&kernel_process, vm_default_runtime());
     x86_enter_usermode(
         (uint32_t)kernel_process.entry_point,
         (uint32_t)kernel_process.user_stack_top

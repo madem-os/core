@@ -5,7 +5,7 @@
  * issue `int 0x80` with three arguments.
  */
 
-    .text
+    .section .user.text, "ax", @progbits
 
     .global user_syscall3
 user_syscall3:

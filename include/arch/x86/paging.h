@@ -20,5 +20,6 @@
 #define ARCH_X86_PAGING_H
 
 void paging_init_identity(void);
+void paging_load_page_directory(const void *page_directory);
 
 #endif
