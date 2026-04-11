@@ -25,8 +25,12 @@
 #include "arch/x86/idt.h"
 #include "arch/x86/irq.h"
 #include "arch/x86/pic.h"
-#include "console/console.h"
 #include "arch/x86/drivers/keyboard.h"
+#include "arch/x86/drivers/vga_display.h"
+#include "console/display.h"
+#include "console/text_console.h"
+#include "tty/tty.h"
+#include "input/input.h"
 
 #if defined(__ELF__)
 #define KERNEL_ENTRY_SECTION __attribute__((section(".text.entry")))
@@ -53,19 +57,35 @@ void kernel_entry(void) {
     );
 }
 
+
+struct tty global_tty;
+struct text_console global_text_console;
+struct display vga_display;
+
+char buf[256];
+
 void kmain(void) {
-    console_write_line("welcome to Madem-OS!");
 
     idt_init();
     pic_init();
     irq_init();
-    keyboard_init();
+    input_init();
+    keyboard_init(input_handle_scancode);
 
+    init_vga_display(&vga_display, 0);
+    text_console_init(&global_text_console, &vga_display);
+    tty_init(
+        &global_tty,
+        input_read_byte_blocking,
+        text_console_tty_write,
+        &global_text_console
+    );
+    
     asm volatile("sti");
 
-    console_write_line("interrupts ready");
+    tty_write(&global_tty, "welcome to Madem-OS!\n", 21);
 
     while (1) {
-        asm volatile("hlt");
+        tty_read(&global_tty, buf, 200);
     }
 }

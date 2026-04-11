@@ -17,6 +17,9 @@
 #ifndef ARCH_X86_DRIVERS_KEYBOARD_H
 #define ARCH_X86_DRIVERS_KEYBOARD_H
 
-void keyboard_init(void);
+#include <stdint.h>
+
+typedef void (*kb_driver_output_writer_t)(const uint8_t scancode);
+void keyboard_init(kb_driver_output_writer_t writer);
 
 #endif

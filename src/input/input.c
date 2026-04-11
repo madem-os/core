@@ -90,7 +90,7 @@ static uint8_t input_apply_shift(uint8_t value) {
     }
 }
 
-static void input_enqueue_byte(uint8_t value) {
+static void input_enqueue_byte(uint8_t value) {    
     (void)input_ring_push(&input_state.ring, value);
 }
 

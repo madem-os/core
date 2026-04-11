@@ -26,66 +26,19 @@
 #include "arch/x86/irq.h"
 #include "arch/x86/pic.h"
 #include "arch/x86/ports.h"
-#include "console/console.h"
 
 #define KEYBOARD_IRQ 1
 #define KEYBOARD_DATA_PORT 0x60
 
-static const char scancode_to_ascii[] = {
-    0,   27,  '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=', '\b', '\t',
-    'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p', '[', ']', '\n', 0, 'a', 's',
-    'd', 'f', 'g', 'h', 'j', 'k', 'l', ';', '\'', '`', 0, '\\', 'z', 'x', 'c', 'v',
-    'b', 'n', 'm', ',', '.', '/', 0, '*', 0, ' ', 0, 0, 0, 0, 0, 0
-};
-
-static bool shift_pressed;
-
-static char keyboard_translate_scancode(uint8_t scancode) {
-    char ascii;
-
-    if (scancode >= sizeof(scancode_to_ascii)) {
-        return 0;
-    }
-
-    ascii = scancode_to_ascii[scancode];
-
-    if (shift_pressed && ascii >= 'a' && ascii <= 'z') {
-        ascii = (char)(ascii - ('a' - 'A'));
-    }
-
-    return ascii;
-}
-
-static void keyboard_process_scancode(uint8_t scancode) {
-    char ascii;
-
-    if (scancode == 0x2A || scancode == 0x36) {
-        shift_pressed = true;
-        return;
-    }
-
-    if (scancode == 0xAA || scancode == 0xB6) {
-        shift_pressed = false;
-        return;
-    }
-
-    if ((scancode & 0x80u) != 0) {
-        return;
-    }
-
-    ascii = keyboard_translate_scancode(scancode);
-    if (ascii != 0) {
-        console_write_char((uint8_t)ascii);
-    }
-}
+kb_driver_output_writer_t kbwriter;
 
 static void keyboard_irq_handler(void) {
     uint8_t scancode = read_port_byte(KEYBOARD_DATA_PORT);
-
-    keyboard_process_scancode(scancode);
+    kbwriter(scancode);
 }
 
-void keyboard_init(void) {
+void keyboard_init(kb_driver_output_writer_t writer) {
+    kbwriter = writer;
     irq_install_handler(KEYBOARD_IRQ, keyboard_irq_handler);
     pic_clear_mask(KEYBOARD_IRQ);
 }

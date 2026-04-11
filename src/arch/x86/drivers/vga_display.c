@@ -33,7 +33,7 @@
 #define VGA_CURSOR_LOW 0x0Fu
 #define VGA_CURSOR_HIGH 0x0Eu
 
-static void vga_display_write_cell(
+void vga_display_write_cell(
     struct display *display,
     uint16_t row,
     uint16_t column,
@@ -41,12 +41,11 @@ static void vga_display_write_cell(
     uint8_t color
 ) {
     uint16_t offset;
-
     offset = (uint16_t)(row * display->width + column);
     display->buffer[offset] = (uint16_t)ch | ((uint16_t)color << 8);
 }
 
-static void vga_display_set_cursor(
+void vga_display_set_cursor(
     struct display *display,
     uint16_t row,
     uint16_t column
