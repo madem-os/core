@@ -21,8 +21,12 @@ USER_TEXT void user_main(void) {
         int count;
 
         count = read(0, buf, (int)sizeof(buf));
-        if (count > 0) {
-            (void)write(1, buf, count);
+        if (count > 0) {    
+            if (count == 2 && buf[0] == '$') {
+                *(volatile char *)0xC0100000 = 11;
+            } else {
+                (void)write(1, buf, count);
+            }
         }
     }
 }

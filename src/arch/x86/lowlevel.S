@@ -7,6 +7,8 @@
  * Responsibilities in this file:
  * - load the active IDT with lidt
  * - enable interrupts with sti
+ * - read CR2 for page-fault reporting
+ * - halt forever in fatal paths
  *
  * These helpers intentionally do not own IRQ policy, syscall dispatch, or any
  * higher-level kernel logic.
@@ -24,3 +26,15 @@ x86_load_idt:
 x86_enable_interrupts:
     sti
     ret
+
+    .global x86_read_cr2
+x86_read_cr2:
+    mov %cr2, %eax
+    ret
+
+    .global x86_halt_forever
+x86_halt_forever:
+    cli
+1:
+    hlt
+    jmp 1b

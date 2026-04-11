@@ -22,6 +22,7 @@
 
 #include <stdint.h>
 
+#include "arch/x86/exceptions.h"
 #include "arch/x86/idt.h"
 #include "arch/x86/irq.h"
 #include "arch/x86/lowlevel.h"
@@ -34,6 +35,7 @@
 #include "console/text_console.h"
 #include "input/input.h"
 #include "kernel/io.h"
+#include "kernel/panic.h"
 #include "kernel/process.h"
 #include "kernel/vm.h"
 #include "tty/tty.h"
@@ -55,6 +57,7 @@ char buf[256];
 
 void kmain(void) {
     idt_init();
+    exceptions_init();
     pic_init();
     irq_init();
     syscall_init();
@@ -63,6 +66,7 @@ void kmain(void) {
 
     init_vga_display(&vga_display, 0);
     text_console_init(&global_text_console, &vga_display);
+    panic_set_console(&global_text_console);
     tty_init(
         &global_tty,
         input_read_byte_blocking,

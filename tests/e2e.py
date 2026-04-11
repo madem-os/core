@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parent.parent
 QEMU_TIMEOUT_SECONDS = 5
 BOOT_WAIT_SECONDS = 1.0
 KEY_WAIT_SECONDS = 0.5
-VGA_DUMP_BYTES = 80 * 2 * 5
+VGA_DUMP_BYTES = 80 * 2 * 15
 PROMPT = b"(qemu) "
 
 
@@ -161,11 +161,24 @@ def test_keyboard_input(session: QemuSession) -> None:
             f"Before: {before!r}\n"
             f"After:  {after!r}"
         )
+    session.send_key("ret")    
+
+def test_user_page_fault(session: QemuSession) -> None:
+    session.send_key("shift-4")
+    session.send_key("ret")
+    after = session.dump_vga_text()
+
+    if "page fault:" not in after:
+        raise AssertionError(
+            "Missing expected page fault panic after forbidden user write.\n"
+            f"Actual VGA text: {after!r}"
+        )
 
 
 TEST_CASES = {
     "boot_text": test_boot_text,
     "keyboard_input": test_keyboard_input,
+    "user_page_fault": test_user_page_fault,
 }
 
 

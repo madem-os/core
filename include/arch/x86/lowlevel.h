@@ -16,7 +16,11 @@
 #ifndef ARCH_X86_LOWLEVEL_H
 #define ARCH_X86_LOWLEVEL_H
 
+#include <stdint.h>
+
 void x86_load_idt(const void *idt_ptr);
 void x86_enable_interrupts(void);
+uint32_t x86_read_cr2(void);
+void x86_halt_forever(void);
 
 #endif
