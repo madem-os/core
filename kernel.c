@@ -29,8 +29,10 @@
 #include "arch/x86/drivers/vga_display.h"
 #include "console/display.h"
 #include "console/text_console.h"
-#include "tty/tty.h"
 #include "input/input.h"
+#include "kernel/io.h"
+#include "kernel/process.h"
+#include "tty/tty.h"
 
 #if defined(__ELF__)
 #define KERNEL_ENTRY_SECTION __attribute__((section(".text.entry")))
@@ -61,6 +63,7 @@ void kernel_entry(void) {
 struct tty global_tty;
 struct text_console global_text_console;
 struct display vga_display;
+struct process kernel_process;
 
 char buf[256];
 
@@ -80,12 +83,15 @@ void kmain(void) {
         text_console_tty_write,
         &global_text_console
     );
+    process_init(&kernel_process);
+    process_set_tty_stdio(&kernel_process, &global_tty);
+    process_set_current(&kernel_process);
     
     asm volatile("sti");
 
-    tty_write(&global_tty, "welcome to Madem-OS!\n", 21);
+    kwrite(1, "welcome to Madem-OS!\n", 21);
 
     while (1) {
-        tty_read(&global_tty, buf, 200);
+        (void)kread(0, buf, 200);
     }
 }

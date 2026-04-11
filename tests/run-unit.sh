@@ -29,6 +29,8 @@ run_test() {
         "${ROOT}/src/tty/tty.c" \
         "${ROOT}/src/console/display.c" \
         "${ROOT}/src/console/text_console.c" \
+        "${ROOT}/src/kernel/process.c" \
+        "${ROOT}/src/kernel/io.c" \
         "${ROOT}/tests/unit/test.c" \
         "${source_file}" \
         -o "${output_file}"
