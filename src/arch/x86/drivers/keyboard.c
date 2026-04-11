@@ -1,9 +1,9 @@
 /*
- * PS/2 Keyboard Driver
+ * x86 PS/2 Keyboard Driver
  *
- * This file owns keyboard-specific behavior for the current kernel, including
- * IRQ registration, scancode tracking, and translation of simple key presses
- * into characters written to the console.
+ * This file owns keyboard-specific behavior for the current x86 kernel,
+ * including IRQ registration, scancode tracking, and translation of simple
+ * key presses into characters written to the console.
  *
  * Responsibilities in this file:
  * - register the keyboard IRQ handler with the IRQ dispatcher
@@ -22,11 +22,11 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "arch/x86/drivers/keyboard.h"
 #include "arch/x86/irq.h"
 #include "arch/x86/pic.h"
 #include "arch/x86/ports.h"
 #include "console/console.h"
-#include "drivers/keyboard.h"
 
 #define KEYBOARD_IRQ 1
 #define KEYBOARD_DATA_PORT 0x60

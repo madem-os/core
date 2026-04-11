@@ -26,7 +26,7 @@
 #include "arch/x86/irq.h"
 #include "arch/x86/pic.h"
 #include "console/console.h"
-#include "drivers/keyboard.h"
+#include "arch/x86/drivers/keyboard.h"
 
 #if defined(__ELF__)
 #define KERNEL_ENTRY_SECTION __attribute__((section(".text.entry")))
