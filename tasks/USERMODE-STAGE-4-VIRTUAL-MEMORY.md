@@ -1,9 +1,9 @@
-# Usermode Stage 4: Minimal Virtual Memory And Address-Space Isolation
+# Usermode Stage 4: Paging, Higher-Half Kernel, And Isolation Foundation
 
 ## Scope
 
-This document defines the next stage after the first working ring-3 vertical
-slice.
+This document defines the next large stage after the first working ring-3
+vertical slice.
 
 The current system already has:
 
@@ -13,199 +13,349 @@ The current system already has:
 - TTY-backed stdin/stdout/stderr
 - a shared linear address space between kernel and user code
 
-This stage adds the minimum virtual-memory foundation needed for:
+The priority for the next stage is:
 
-- real user/kernel memory isolation
-- per-process address spaces
-- safe user-pointer handling in syscalls
-- a clean base for a later `spawn/exec` milestone
+1. turn on paging safely
+2. migrate the kernel to a higher-half virtual address layout
+3. preserve all current behavior with unit and e2e coverage
+4. only then build per-process isolation on top of that cleaner base
 
-This stage does **not** yet add multi-process execution or an executable
-loader. It only builds the memory model those features will need.
+This stage is therefore not only about isolation. It is about first moving the
+kernel to a cleaner virtual-memory architecture and then using that foundation
+for user address spaces.
+
+## Why This Order
+
+For this project, the priority is cleaner architecture before additional
+process features.
+
+The higher-half kernel is not required for isolation in the abstract, but it
+does give a better long-term structure for:
+
+- separating kernel and user virtual regions
+- reducing accidental overlap with user mappings
+- making future loader and process work easier to reason about
+- making memory-management bugs less likely to silently corrupt the kernel
+
+So the intended order is:
+
+- paging on
+- higher-half kernel
+- isolated user address spaces
+- later `spawn/exec`
+
+That is the right order for this codebase because architectural clarity is a
+priority in its own right.
 
 ## Goal
 
-After this stage, MademOS should be able to:
+After this full stage, MademOS should be able to:
 
 1. enable paging
-2. keep the kernel mapped at stable virtual addresses
-3. create one user address space that is separate from the kernel’s writable
-   memory
-4. run the current built-in user process inside that address space
-5. reject invalid user pointers in `read` / `write` syscalls
-6. preserve the existing terminal behavior and e2e tests
+2. execute the kernel in a higher-half virtual region
+3. preserve the current usermode and terminal behavior
+4. introduce one per-process page directory model on top of the higher-half
+   kernel mapping
+5. run the current built-in user process in a dedicated user virtual region
+6. validate user pointers in syscalls
 
-The success condition is:
-
-- the current user app still runs
-- user memory is no longer the same writable region as kernel memory
-- syscall pointer arguments are checked against the user virtual range
+The stage should be implemented and committed in smaller sub-steps, each of
+which should keep the current tests green.
 
 ## Non-Goals
 
-This stage does not include:
+This stage does not yet include:
 
-- loading executables from disk
 - multiple concurrent processes
-- a scheduler
+- scheduling
 - `spawn`, `exec`, `fork`, or `wait`
+- loading executables from disk
 - copy-on-write
 - demand paging
-- a heap allocator for user processes
-- swapping or page reclaim
+- a general heap allocator for user processes
 
-Those belong to later stages.
+Those come later.
 
-## Why This Stage Comes Next
+## Stage Breakdown
 
-The next milestone the project wants is:
+### Stage 4.1: Enable Paging With Identity Mapping Only
 
-- one user app launching another user app
-- memory isolation
+Goal:
 
-That requires a real process boundary. Right now the OS has privilege
-separation, but not memory separation. A user program runs in ring 3, yet its
-code and buffers still live in the same linear address space as the kernel.
+- turn paging on without changing any virtual addresses yet
 
-Before the OS can safely create and load additional user processes, it needs:
+Behavior:
 
-- paging
-- one per-process page directory
-- a stable kernel mapping
-- a defined user virtual range
-- syscall pointer validation
+- kernel still executes at the same low linear addresses as today
+- page tables identity-map the memory currently required by the kernel and boot
+  environment
+- usermode, syscalls, TTY, console, and e2e behavior remain unchanged
 
-Without those pieces, `spawn/exec` would only create more shared-memory
-processes, which is not the intended direction.
+Why this comes first:
 
-## Design Principles
+- it isolates the most delicate transition
+- it lets the project verify that paging itself is correct before any higher
+  half or isolation work
 
-- Keep the first paging model small and explicit.
-- Preserve the current kernel high-half-free layout unless a relocation is
-  truly necessary.
-- Prefer a fixed, easy-to-debug user virtual layout over a flexible allocator.
-- Share the kernel mapping across all processes.
-- Delay advanced VM features until there is a real loader and more than one
-  process.
+Definition of done for 4.1:
 
-## High-Level Design
+- paging is enabled
+- the kernel still boots
+- the current user process still runs
+- `./tests/run-unit.sh` passes
+- `python3 tests/e2e.py` passes
 
-The first isolated address-space model should be:
+### Stage 4.2: Migrate The Kernel To The Higher Half
 
-- identity-mapped kernel physical memory in the low region used today
-- one user virtual window reserved below the kernel-used range
-- per-process page directory
-- shared kernel PDEs
-- process-private user PDE/PTEs
+Goal:
 
-Conceptually:
+- keep the kernel physically loaded low
+- execute it at a high virtual address
 
-`user virtual pages -> process page tables -> physical user pages`
+Recommended model:
 
-and:
+- kernel physical load remains at `0x00100000`
+- linker virtual base moves to a higher-half address, for example
+  `0xC0100000`
+- early page tables map both:
+  - a temporary low identity window
+  - the high-half kernel window
+- boot/entry code switches paging on while both aliases exist
+- control then transfers into the high-half kernel entry
 
-`kernel virtual pages -> shared kernel page tables -> kernel physical pages`
+Why this is separate from 4.1:
 
-The current ring-3 user program can still be built into the image, but before
-entering user mode the kernel should copy its bytes into mapped user pages and
-jump to the **user virtual entry address**, not the kernel link address.
+- linker and virtual-address changes are a different class of bug than “paging
+  turns on”
+- debugging is much easier if those changes are not mixed together
 
-## Proposed Virtual Address Layout
+Definition of done for 4.2:
 
-Keep the first layout intentionally simple.
+- the kernel runs from high virtual addresses
+- the current ring-3 user program still works
+- the current terminal/input/output path still works
+- all current tests still pass
 
-Suggested user layout:
+### Stage 4.3: Introduce User Virtual Window And Per-Process CR3
 
-- `0x00400000` - user text/data base
-- `0x00400000` - first user program entry region
-- `0x00800000` - optional future heap base placeholder
-- `0x00C00000` - user stack top
+Goal:
 
-Suggested kernel rule:
+- add one isolated user virtual region on top of the higher-half kernel
 
-- kernel keeps its current low memory identity mapping
-- user mappings must stay below the kernel-used image and stack region
+This is the first point where the OS gets real memory separation, not only a
+cleaner kernel layout.
 
-The exact user addresses can be adjusted, but the important constraints are:
+The architectural rule should be explicit:
 
-- one fixed user code base
-- one fixed user stack top
-- no overlap with kernel runtime data
+- when a process is active, the kernel also runs with that process's CR3
+  loaded
+
+That means:
+
+- syscalls execute with shared kernel mappings plus the current process's user
+  mappings visible
+- future context switches will switch CR3 as part of changing the current
+  process
+
+Definition of done for 4.3:
+
+- `struct process` owns a page-directory pointer
+- one user virtual region is mapped for the current process
+- the built-in user program runs from that user region, not the kernel-linked
+  address
+- the current usermode app still works through syscalls
+
+### Stage 4.4: Validate User Pointers In Syscalls
+
+Goal:
+
+- stop trusting raw user pointers passed to `read` / `write`
+
+Validation should be:
+
+1. user-range check
+2. minimal page-table walk
+
+This should reject:
+
+- kernel pointers passed from user space
+- ranges that cross past the user limit
+- unmapped or non-user pages
+- non-writable pages when the syscall needs write access
+
+Definition of done for 4.4:
+
+- `read` and `write` reject invalid user buffers
+- negative e2e cases exist
+- current positive e2e cases still pass
+
+## Higher-Half Kernel Design
+
+### Physical And Virtual Model
+
+The recommended first higher-half design is:
+
+- physical kernel load address stays low:
+  - `KERNEL_PHYS_BASE = 0x00100000`
+- virtual kernel base moves high:
+  - for example `KERNEL_VIRT_BASE = 0xC0000000`
+- linked kernel entry becomes:
+  - `KERNEL_ENTRY_VIRT = KERNEL_VIRT_BASE + 0x00100000`
+
+The exact constant can vary, but the design should commit to a true high-half
+mapping rather than a vague “higher than before” rule.
+
+### Transition Model
+
+During the migration step, the early page tables should provide:
+
+- low identity mapping for the currently executing boot/kernel code
+- high-half mapping for the linked kernel image
+
+Then the system should:
+
+1. enable paging
+2. continue briefly under the low alias
+3. jump to the high-half kernel address
+4. continue normal kernel execution from there
+
+The low alias may be kept temporarily after bring-up for simplicity. Removing
+it can be a later cleanup.
+
+## User Virtual Window Contract
+
+Once the kernel is high-half, the user window should become a hard contract in
+the lower part of the address space.
+
+Suggested first constants:
+
+- `USER_BASE      = 0x00400000`
+- `USER_TEXT_BASE = 0x00400000`
+- `USER_HEAP_BASE = 0x00800000` (reserved placeholder)
+- `USER_STACK_TOP = 0x00C00000`
+- `USER_LIMIT     = 0x00C00000`
+
+Important rule:
+
+- the user window is a fixed contract
+- the kernel must prove it does not use that range
+
+That proof should cover:
+
+- kernel static sections
+- bootstrap stack
+- bootstrap page tables/directories
+- frame allocator metadata
+- VGA/device windows already in use
+- built-in user image blob in the kernel image
 
 ## Paging Model
 
 Use standard 32-bit non-PAE 4 KiB paging.
-
-### First Paging Features
-
-- one page directory for the kernel bootstrap environment
-- one page directory for the first user process
-- 4 KiB pages
-- present / writable / user flags as needed
-- shared kernel mappings copied into each process page directory
 
 ### Kernel Mapping Policy
 
 Kernel pages should be:
 
 - present
-- writable where needed
 - supervisor-only
+- writable where needed
+- identically mapped in the kernel region of every process address space
+
+### User Mapping Policy
 
 User pages should be:
 
 - present
-- writable for stack/data pages
 - user-accessible
+- writable for stack/data pages
 
-The initial user text can be writable too if that simplifies the first stage.
-Read-only text protection can be added later.
+The first isolated user text may still be writable if that keeps the bring-up
+simple. Read-only text can be added later.
 
-## Memory Objects Needed
+## Process Address-Space Shape
 
-The first VM stage should introduce:
-
-### Page Directory / Page Table Types
-
-For example:
+The process should grow a small VM descriptor:
 
 ```c
-typedef uint32_t page_entry_t;
+struct vm_space {
+    uintptr_t user_base;
+    uintptr_t user_limit;
+    uintptr_t text_base;
+    size_t text_size;
+    uintptr_t stack_top;
+    size_t stack_size;
+    struct page_directory *page_directory;
+};
 
-struct page_directory {
-    page_entry_t entries[1024];
-} __attribute__((aligned(4096)));
-
-struct page_table {
-    page_entry_t entries[1024];
-} __attribute__((aligned(4096)));
-```
-
-### Process Address-Space State
-
-`struct process` should grow to include:
-
-```c
 struct process {
     struct file_descriptor fds[3];
     uintptr_t entry_point;
     uintptr_t user_stack_top;
-    struct page_directory *page_directory;
+    struct vm_space vm_space;
 };
 ```
 
-Later stages may add:
+This is enough for the current stage. It avoids scattering user-range
+constants across unrelated modules.
 
-- pid
-- parent
-- state
-- saved register context
+## Physical Frame Allocation
 
-But they are not required yet.
+The first version should use a tiny page-sized bump allocator for physical
+frames.
+
+The allocator must never hand out pages occupied by:
+
+- kernel image sections
+- bootstrap stack
+- bootstrap page directory/table structures
+- built-in user image blob stored in the kernel image
+- VGA/device memory windows already in use
+- allocator metadata itself
+
+The first implementation should explicitly define:
+
+- allocator start frame
+- provisional allocator limit
+- reserved exclusions
+
+## User Stack
+
+The first user stack should reserve a guard gap now.
+
+Recommended first model:
+
+- map a small user stack region
+- leave one unmapped page below it as a guard page
+
+Even before full page-fault handling, this is the right contract to establish.
+
+## Syscall Pointer Validation
+
+Validation should be explicit and honest.
+
+Suggested API:
+
+```c
+int vm_validate_user_buffer(const void *ptr, uint32_t len, int writeable);
+```
+
+Validation should do:
+
+1. range check
+2. wraparound check
+3. page-table walk across every touched page
+
+It should verify:
+
+- buffer stays within the process user range
+- every touched page is present
+- every touched page is marked user-accessible
+- every touched page is writable when required
 
 ## Proposed Files
 
-New files:
+New files likely needed in this overall stage:
 
 - `include/kernel/vm.h`
 - `src/kernel/vm.c`
@@ -214,214 +364,75 @@ New files:
 
 Likely files to change:
 
+- `link.ld`
+- `bootS.asm`
 - `include/kernel/process.h`
 - `src/kernel/process.c`
-- `src/arch/x86/usermode_stub.S` only if CR3 interaction or stack rules need
-  small adjustments
-- `src/arch/x86/syscall.c` or generic syscall layer if validation helpers are
-  integrated there
 - `kernel.c`
-- `build.sh` only if a user-image copy step is introduced
+- `src/arch/x86/usermode_stub.S`
+- `src/arch/x86/syscall.c` or generic syscall layer for validation integration
 
-## Module Responsibilities
+## Task Breakdown
 
-### `arch/x86/paging`
+The recommended implementation and commit order is:
 
-Responsibilities:
+1. **Task 4.1**
+   Paging-on only with identity mapping.
 
-- own x86 paging instruction helpers
-- load CR3
-- enable paging in CR0
-- expose page-table flag constants
-- provide small helpers for page-directory/page-table entry construction
+2. **Task 4.2**
+   Higher-half kernel migration with temporary low alias.
 
-This module should stay x86-specific and instruction-focused.
+3. **Task 4.3**
+   Process VM descriptor and per-process CR3 groundwork.
 
-### `kernel/vm`
+4. **Task 4.4**
+   User virtual window mapping plus copying the built-in user image into that
+   region.
 
-Responsibilities:
+5. **Task 4.5**
+   Syscall pointer validation plus negative e2e cases.
 
-- create the bootstrap kernel page directory
-- create one process page directory
-- map user pages
-- copy the built-in user image into user memory
-- validate user pointers against the active process address space contract
+Each task should preserve current behavior and keep the current tests green
+before moving on.
 
-This module owns policy, not the raw paging instructions.
-
-## Bootstrap Strategy
-
-The easiest first implementation is:
-
-1. build a page directory that identity-maps the memory currently used by the
-   kernel and boot environment
-2. enable paging
-3. build a second page directory for the first user process
-4. copy shared kernel mappings into it
-5. allocate and map:
-   - one user text/data region
-   - one user stack page or a few stack pages
-6. copy the built-in user program bytes into the mapped user text region
-7. set:
-   - `process.entry_point = USER_TEXT_BASE + user_program_offset`
-   - `process.user_stack_top = USER_STACK_TOP`
-8. switch to that process page directory before entering ring 3
-
-This is enough to isolate the first process without introducing a full loader.
-
-## User Program Placement
-
-There are two reasonable ways to handle the existing built-in user app.
-
-### Option A: Keep It Linked Into The Kernel, Then Copy It
-
-The kernel linker script exports symbols for the user code blob:
-
-```c
-extern uint8_t _user_image_start[];
-extern uint8_t _user_image_end[];
-extern uintptr_t _user_image_entry;
-```
-
-Then VM setup:
-
-- allocates user pages
-- copies the user image bytes into `USER_TEXT_BASE`
-- computes the user entry virtual address
-
-This is the recommended first step because it avoids building a file loader
-and still forces the kernel to execute the user program from isolated pages.
-
-### Option B: Keep Executing The Kernel-Linked Address
-
-Do not do this. It preserves the current shared-memory model and defeats the
-purpose of this stage.
-
-## Pointer Validation Rules
-
-This stage should add explicit user-pointer validation helpers.
-
-Suggested API:
-
-```c
-int vm_validate_user_buffer(const void *ptr, uint32_t len, int writeable);
-```
-
-For the first version, validation can be range-based:
-
-- pointer must be fully inside the defined user virtual range
-- range must not wrap around
-- zero-length buffers are allowed
-
-Later this can evolve into real page-presence checks, but range validation is
-already a meaningful improvement over the current unchecked behavior.
-
-## Syscall Changes Required
-
-The current `read` / `write` syscalls trust user pointers. That must change.
-
-Required updates:
-
-- `SYS_READ`:
-  - validate destination buffer as writable user memory
-- `SYS_WRITE`:
-  - validate source buffer as readable user memory
-
-If validation fails:
-
-- return `-1` for now
-
-That is enough for the current syscall style.
-
-## Process Integration
-
-The current single-process model stays in place, but it becomes address-space
-aware.
-
-The first kernel process initialization sequence should become:
-
-1. initialize terminal/input/output stack
-2. initialize paging
-3. initialize one `struct process`
-4. wire TTY stdio
-5. create the process page directory
-6. map user text and stack
-7. copy the built-in user image into user space
-8. set process entry and stack pointers to user virtual addresses
-9. set current process
-10. switch CR3 to the process page directory
-11. enter ring 3
-
-## Hosted Test Plan
-
-Hosted unit tests cannot execute paging instructions, so the test split should
-be:
+## Test Plan
 
 ### Hosted Tests
 
-Test generic VM policy in `kernel/vm`:
+Hosted unit tests should cover:
 
-- user-range validation success/failure
-- overflow handling in pointer-range checks
-- process address-space field initialization
-
-These tests should not try to execute `mov %cr3` or `mov %cr0`.
+- range and wraparound checks
+- page-walk validation over synthetic PDE/PTE state
+- process VM structure initialization
 
 ### Freestanding / E2E Verification
 
-Verify in QEMU that:
+After each task, verify:
 
 - the kernel still boots
-- the first user process still prints `user mode ready`
+- `user mode ready` still appears
 - keyboard input still reaches the user process
-- invalid user pointers can be tested later through a small fault-injection
-  user app
 
-## Recommended Implementation Order
+Later negative e2e cases for validation should include:
 
-1. introduce x86 paging instruction helpers
-2. introduce generic VM policy module
-3. build and enable a bootstrap identity-mapped page directory
-4. extend `struct process` with `page_directory`
-5. build one per-process page directory with copied kernel mappings
-6. map user text and user stack
-7. copy the current built-in user image into user pages
-8. switch the current process to that page directory
-9. add syscall pointer validation
-10. update e2e tests if needed
-
-## Open Design Choices
-
-These should be resolved before implementation starts:
-
-1. **How much kernel memory to identity-map at first?**
-   Recommendation: map enough low memory to cover the current kernel image,
-   stack, page structures, VGA memory, and known device regions already in use.
-
-2. **How are physical pages allocated for the first version?**
-   Recommendation: use a tiny static bump allocator for page-sized frames.
-   A full physical memory manager is not needed yet.
-
-3. **How is the user image copied and bounded?**
-   Recommendation: add linker symbols for a dedicated user image section.
-
-4. **Should user text be writable in the first version?**
-   Recommendation: yes, if it keeps the first stage simpler. Tighten later.
+- `write(1, bad_kernel_pointer, len)` returns `-1`
+- `read(0, bad_kernel_pointer, len)` returns `-1`
+- a buffer crossing past `USER_LIMIT` returns `-1`
 
 ## Definition Of Done
 
-This stage is complete when:
+This whole stage is complete when:
 
 - paging is enabled
-- the current ring-3 app runs from mapped user virtual memory
-- the kernel and user memory are no longer the same writable region
-- each process owns a page directory pointer
+- the kernel runs in the higher half
+- the current user app runs from mapped user virtual memory
+- each process owns a page-directory pointer
 - syscalls validate user buffers before dereferencing them
-- the current unit tests pass
-- the current e2e tests pass
+- current unit tests pass
+- current e2e tests pass
 
-At that point, the OS will have the minimum memory-isolation base needed for
-the following milestone:
+At that point, the project will have the right foundation for the following
+milestone:
 
-- loading and executing a second user app from the first one
-- adding real process creation and replacement APIs on top
+- executing one user app from another
+- building `spawn/exec` on top of real address spaces

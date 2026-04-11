@@ -66,6 +66,12 @@ This first user-mode milestone does not include:
 
 Those can come later.
 
+The next post-milestone priority is now:
+
+- paging
+- higher-half kernel migration
+- then per-process isolation and future `spawn/exec`
+
 ## Design Principles
 
 - Prefer a small, coherent vertical slice over a broad but half-finished OS
@@ -452,4 +458,3 @@ This user-mode milestone is done when:
 - output reaches the text console and VGA display
 - keyboard input reaches the user process through the TTY stack
 - a simple terminal application works in QEMU end-to-end
-
