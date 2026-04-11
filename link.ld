@@ -1,6 +1,9 @@
 /* link.ld */
 ENTRY(kernel_entry)
 
+KERNEL_PHYS_BASE = 0x00100000;
+KERNEL_VIRT_BASE = 0xC0000000;
+
 PHDRS
 {
     text PT_LOAD FLAGS(5);  /* R + X */
@@ -9,29 +12,34 @@ PHDRS
 
 SECTIONS
 {
-    . = 0x00100000;
+    . = KERNEL_PHYS_BASE + KERNEL_VIRT_BASE;
 
-    .text.entry : ALIGN(16)
+    . = ALIGN(16);
+    .text.entry : AT(ADDR(.text.entry) - KERNEL_VIRT_BASE)
     {
         KEEP(*(.text.entry))
     } :text
 
-    .text : ALIGN(16)
+    . = ALIGN(16);
+    .text : AT(ADDR(.text) - KERNEL_VIRT_BASE)
     {
         *(.text .text.*)
     } :text
 
-    .rodata : ALIGN(16)
+    . = ALIGN(16);
+    .rodata : AT(ADDR(.rodata) - KERNEL_VIRT_BASE)
     {
         *(.rodata .rodata.*)
     } :text
 
-    .data : ALIGN(16)
+    . = ALIGN(16);
+    .data : AT(ADDR(.data) - KERNEL_VIRT_BASE)
     {
         *(.data .data.*)
     } :data
 
-    .bss : ALIGN(16)
+    . = ALIGN(16);
+    .bss : AT(ADDR(.bss) - KERNEL_VIRT_BASE)
     {
         *(COMMON)
         *(.bss .bss.*)

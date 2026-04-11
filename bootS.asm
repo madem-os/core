@@ -16,9 +16,20 @@
 ;
 ; The current implementation assumes a BIOS boot on x86, legacy ATA port I/O,
 ; a kernel loaded at 0x00100000, and a flat 32-bit protected-mode setup.
+;
+; The current paging stage keeps the kernel physically loaded low but maps it
+; into the higher half before transferring control into the linked entry.
 
 [BITS 16]
 org 0x7C00
+
+%define KERNEL_PHYS_BASE           0x00100000
+%define KERNEL_VIRT_BASE           0xC0000000
+%define KERNEL_HIGH_ENTRY          (KERNEL_VIRT_BASE + KERNEL_PHYS_BASE)
+%define BOOT_PAGE_DIRECTORY        0x00020000
+%define BOOT_PAGE_TABLES_BASE      0x00021000
+%define BOOT_PAGE_TABLE_COUNT      4
+%define PAGE_PRESENT_WRITABLE_USER 0x00000007
 
 cli 
 xor ax, ax ; setup segment registers
@@ -255,7 +266,53 @@ protected_mode_entry:
 	next:
 	
 	call read_kernel
-	mov esp, 0x00090000
-	jmp 0x00100000
+	call setup_boot_paging
+	mov eax, BOOT_PAGE_DIRECTORY
+	mov cr3, eax
+	mov eax, cr0
+	or eax, 0x80000000
+	mov cr0, eax
+	mov eax, KERNEL_HIGH_ENTRY
+	jmp eax
+
+	setup_boot_paging:
+	push eax
+	push ebx
+	push ecx
+	push edi
+
+	mov edi, BOOT_PAGE_DIRECTORY
+	mov ecx, ((1 + BOOT_PAGE_TABLE_COUNT) * 4096) / 4
+	xor eax, eax
+	rep stosd
+
+	mov ebx, BOOT_PAGE_TABLES_BASE
+	mov edi, BOOT_PAGE_DIRECTORY
+	mov ecx, BOOT_PAGE_TABLE_COUNT
+	setup_pde_loop:
+	mov eax, ebx
+	or eax, PAGE_PRESENT_WRITABLE_USER
+	mov [edi], eax
+	mov [edi + 0xC00], eax
+	add edi, 4
+	add ebx, 4096
+	loop setup_pde_loop
+
+	mov edi, BOOT_PAGE_TABLES_BASE
+	mov ecx, BOOT_PAGE_TABLE_COUNT * 1024
+	xor ebx, ebx
+	setup_pte_loop:
+	mov eax, ebx
+	or eax, PAGE_PRESENT_WRITABLE_USER
+	mov [edi], eax
+	add edi, 4
+	add ebx, 4096
+	loop setup_pte_loop
+
+	pop edi
+	pop ecx
+	pop ebx
+	pop eax
+	ret
 	
 times 32768-($-$$) db 0 

@@ -25,7 +25,6 @@
 #include "arch/x86/idt.h"
 #include "arch/x86/irq.h"
 #include "arch/x86/lowlevel.h"
-#include "arch/x86/paging.h"
 #include "arch/x86/pic.h"
 #include "arch/x86/drivers/keyboard.h"
 #include "arch/x86/drivers/vga_display.h"
@@ -45,6 +44,8 @@
 #define KERNEL_ENTRY_SECTION
 #endif
 
+extern void kernel_entry(void);
+
 struct tty global_tty;
 struct text_console global_text_console;
 struct display vga_display;
@@ -54,8 +55,6 @@ static uint8_t user_stack[4096];
 char buf[256];
 
 void kmain(void) {
-    paging_init_identity();
-
     idt_init();
     pic_init();
     irq_init();
@@ -80,6 +79,9 @@ void kmain(void) {
     x86_enable_interrupts();
 
     kwrite(1, "welcome to Madem-OS!\n", 21);
+    kwrite(1, "kernel_entry=", 13);
+    kwrite_hex32(1, (uint32_t)(uintptr_t)kernel_entry);
+    kwrite(1, "\n", 1);
     x86_enter_usermode(
         (uint32_t)kernel_process.entry_point,
         (uint32_t)kernel_process.user_stack_top

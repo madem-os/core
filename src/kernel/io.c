@@ -15,6 +15,7 @@
  */
 
 #include <stddef.h>
+#include <stdint.h>
 
 #include "kernel/io.h"
 #include "kernel/process.h"
@@ -63,4 +64,20 @@ int kwrite(int fd, const char *buf, int len) {
     }
 
     return tty_write((struct tty *)descriptor->object, buf, len);
+}
+
+int kwrite_hex32(int fd, uint32_t value) {
+    static const char hex_digits[] = "0123456789ABCDEF";
+    char hex_buffer[10];
+    int shift;
+    int index;
+
+    hex_buffer[0] = '0';
+    hex_buffer[1] = 'x';
+
+    for (index = 0, shift = 28; index < 8; index++, shift -= 4) {
+        hex_buffer[index + 2] = hex_digits[(value >> shift) & 0x0Fu];
+    }
+
+    return kwrite(fd, hex_buffer, 10);
 }

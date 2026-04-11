@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parent.parent
 QEMU_TIMEOUT_SECONDS = 5
 BOOT_WAIT_SECONDS = 1.0
 KEY_WAIT_SECONDS = 0.5
-VGA_DUMP_BYTES = 80 * 2 * 3
+VGA_DUMP_BYTES = 80 * 2 * 5
 PROMPT = b"(qemu) "
 
 
@@ -135,6 +135,12 @@ def test_boot_text(session: QemuSession) -> None:
     if "welcome to Madem-OS!" not in vga_text:
         raise AssertionError(
             "Missing expected boot banner.\n"
+            f"Actual VGA text: {vga_text!r}"
+        )
+
+    if "kernel_entry=0xC0100000" not in vga_text:
+        raise AssertionError(
+            "Missing expected higher-half kernel address print.\n"
             f"Actual VGA text: {vga_text!r}"
         )
 

@@ -15,7 +15,10 @@
 #ifndef KERNEL_IO_H
 #define KERNEL_IO_H
 
+#include <stdint.h>
+
 int kread(int fd, char *buf, int len);
 int kwrite(int fd, const char *buf, int len);
+int kwrite_hex32(int fd, uint32_t value);
 
 #endif
