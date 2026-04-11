@@ -24,7 +24,8 @@ run_test() {
 
     "${CC_BIN}" \
         "${CFLAGS[@]}" \
-        "${ROOT}/src/drivers/keyboard_ring.c" \
+        "${ROOT}/src/input/input_ring.c" \
+        "${ROOT}/src/input/input.c" \
         "${ROOT}/tests/unit/test.c" \
         "${source_file}" \
         -o "${output_file}"
