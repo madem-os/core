@@ -19,24 +19,41 @@ mkdir -p "${BUILD_DIR}"
 run_test() {
     local source_file="$1"
     local output_file
+    local -a command
+    local -a extra_sources=()
 
     output_file="${BUILD_DIR}/$(basename "${source_file%.c}")"
 
-    "${CC_BIN}" \
-        "${CFLAGS[@]}" \
-        "${ROOT}/src/input/input_ring.c" \
-        "${ROOT}/src/input/input.c" \
-        "${ROOT}/src/tty/tty.c" \
-        "${ROOT}/src/console/display.c" \
-        "${ROOT}/src/console/text_console.c" \
-        "${ROOT}/src/kernel/bootstrap_paging.c" \
-        "${ROOT}/src/kernel/process.c" \
-        "${ROOT}/src/kernel/vm.c" \
-        "${ROOT}/src/kernel/io.c" \
-        "${ROOT}/src/kernel/syscall.c" \
-        "${ROOT}/tests/unit/test.c" \
-        "${source_file}" \
+    if [[ "$(basename "${source_file}")" == "test_user_programs.c" ]]; then
+        extra_sources+=("${ROOT}/src/kernel/user_programs.c")
+    fi
+
+    command=(
+        "${CC_BIN}"
+        "${CFLAGS[@]}"
+        "${ROOT}/src/input/input_ring.c"
+        "${ROOT}/src/input/input.c"
+        "${ROOT}/src/tty/tty.c"
+        "${ROOT}/src/console/display.c"
+        "${ROOT}/src/console/text_console.c"
+        "${ROOT}/src/kernel/bootstrap_paging.c"
+        "${ROOT}/src/kernel/process.c"
+        "${ROOT}/src/kernel/vm.c"
+        "${ROOT}/src/kernel/io.c"
+        "${ROOT}/src/kernel/syscall.c"
+    )
+
+    if [[ ${#extra_sources[@]} -gt 0 ]]; then
+        command+=("${extra_sources[@]}")
+    fi
+
+    command+=(
+        "${ROOT}/tests/unit/test.c"
+        "${source_file}"
         -o "${output_file}"
+    )
+
+    "${command[@]}"
 
     "${output_file}"
 }

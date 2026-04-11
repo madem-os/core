@@ -150,7 +150,4 @@ void vm_activate_process(
 );
 /* Returns the default kernel-owned VM runtime buffers and platform hooks. */
 struct vm_runtime *vm_default_runtime(void);
-/* Returns the default built-in user image descriptor exported by the kernel link. */
-const struct vm_user_image *vm_default_user_image(void);
-
 #endif

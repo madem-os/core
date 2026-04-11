@@ -139,12 +139,6 @@ struct vm_elf32_phdr {
 #define VM_EV_CURRENT 1u
 #define VM_PT_LOAD 1u
 
-#if defined(__ELF__) && defined(__i386__)
-extern uint8_t _user_echo_line_elf_start[];
-extern uint8_t _user_echo_line_elf_end[];
-static struct vm_user_image default_user_image;
-#endif
-
 int vm_user_image_from_elf(
     struct vm_user_image *user_image,
     const uint8_t *elf_bytes,
@@ -412,21 +406,4 @@ struct vm_runtime *vm_default_runtime(void) {
     default_vm_runtime.load_page_directory = NULL;
 #endif
     return &default_vm_runtime;
-}
-
-const struct vm_user_image *vm_default_user_image(void) {
-#if defined(__ELF__) && defined(__i386__)
-    if (
-        vm_user_image_from_elf(
-            &default_user_image,
-            _user_echo_line_elf_start,
-            (size_t)(_user_echo_line_elf_end - _user_echo_line_elf_start)
-        ) == 0
-    ) {
-        return &default_user_image;
-    }
-    return NULL;
-#else
-    return NULL;
-#endif
 }

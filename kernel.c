@@ -37,6 +37,7 @@
 #include "kernel/io.h"
 #include "kernel/panic.h"
 #include "kernel/process.h"
+#include "kernel/user_programs.h"
 #include "kernel/vm.h"
 #include "tty/tty.h"
 
@@ -56,6 +57,9 @@ struct process kernel_process;
 char buf[256];
 
 void kmain(void) {
+    const struct user_program *initial_program;
+    struct vm_user_image initial_user_image;
+
     idt_init();
     exceptions_init();
     pic_init();
@@ -76,11 +80,18 @@ void kmain(void) {
     process_init(&kernel_process);
     process_set_tty_stdio(&kernel_process, &global_tty);
     process_set_current(&kernel_process);
+    initial_program = user_program_find("echo_line");
     if (
+        initial_program == NULL ||
+        vm_user_image_from_elf(
+            &initial_user_image,
+            initial_program->elf_start,
+            (size_t)(initial_program->elf_end - initial_program->elf_start)
+        ) != 0 ||
         vm_init_process(
             &kernel_process,
             vm_default_runtime(),
-            vm_default_user_image()
+            &initial_user_image
         ) != 0
     ) {
         kwrite(1, "vm init failed\n", 15);

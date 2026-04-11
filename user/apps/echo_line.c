@@ -11,8 +11,11 @@
 
 static const char user_mode_ready[] = "user mode ready\n";
 
-void user_main(void) {
+int main(int argc, char **argv) {
     char buf[128];
+
+    (void)argc;
+    (void)argv;
 
     (void)write(1, user_mode_ready, (int)(sizeof(user_mode_ready) - 1u));
 
@@ -28,4 +31,6 @@ void user_main(void) {
             }
         }
     }
+
+    return 0;
 }
