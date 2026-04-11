@@ -21,8 +21,9 @@ Create a minimal `tty` module that operates on `struct tty` and supports:
 - raw mode
 - cooked mode
 - mode switching
+- cooked-mode echo
 - blocking reads based on an injected input-byte source
-- presentation through injected display hooks
+- terminal output through an injected byte-stream writer
 
 This work must be done with TDD:
 
@@ -70,37 +71,32 @@ The first version should define:
 
 ```c
 typedef uint8_t (*tty_input_reader_t)(void);
-typedef void (*tty_display_write_char_t)(void *ctx, char ch);
-typedef void (*tty_display_backspace_t)(void *ctx);
-typedef void (*tty_display_newline_t)(void *ctx);
+typedef int (*tty_output_writer_t)(void *ctx, const char *buf, int len);
 
 enum tty_mode {
     TTY_MODE_COOKED = 0,
     TTY_MODE_RAW = 1
 };
 
-struct tty_display {
-    tty_display_write_char_t write_char;
-    tty_display_backspace_t backspace;
-    tty_display_newline_t newline;
-    void *ctx;
-};
-
 struct tty {
     enum tty_mode mode;
+    bool echo_enabled;
     tty_input_reader_t read_input_byte_blocking;
-    const struct tty_display *display;
+    tty_output_writer_t write_output;
+    void *output_ctx;
 };
 
 void tty_init(
     struct tty *tty,
     tty_input_reader_t reader,
-    const struct tty_display *display
+    tty_output_writer_t writer,
+    void *output_ctx
 );
 void tty_set_mode(struct tty *tty, enum tty_mode mode);
 enum tty_mode tty_get_mode(const struct tty *tty);
 char tty_read_raw_blocking(struct tty *tty);
 int tty_read(struct tty *tty, char *buf, int len);
+int tty_write(struct tty *tty, const char *buf, int len);
 ```
 
 The API can grow later, but this is the minimum target for the first TTY
@@ -118,7 +114,8 @@ For example:
 - `tty_get_mode()` may return a placeholder
 - `tty_read_raw_blocking()` may return `0`
 - `tty_read()` may return `0`
-- display hooks may be stored but not used yet
+- `tty_write()` may return `0`
+- output writer may be stored but not used yet
 
 The important part is that the code compiles and the tests fail because the
 behavior is not implemented yet.
@@ -131,7 +128,7 @@ The tests should inject a fake input-byte reader rather than using the real
 input system.
 
 Each test should construct its own `struct tty` instance and initialize it
-with a test reader and mock display hooks.
+with a test reader and mock output writer.
 
 Do not use hidden singleton state in the TTY module.
 
@@ -160,6 +157,7 @@ Recommended pattern:
 - test file owns a static array of input bytes
 - fake reader returns the next byte from that array
 - each test resets the array index before use
+- fake writer appends to a test output buffer
 
 That allows precise testing of:
 
@@ -167,7 +165,8 @@ That allows precise testing of:
 - Enter
 - Backspace
 - mode switching
-- visible echo behavior through presentation hooks
+- output forwarding through `tty_write()`
+- cooked-mode echo behavior
 
 ## Initial Behavior To Test
 
@@ -178,8 +177,9 @@ The tests should cover at least the following cases.
 After initialization:
 
 - mode should be `TTY_MODE_COOKED`
+- echo should default to enabled
 - the injected reader should be stored
-- the injected display hooks should be stored
+- the injected output writer should be stored
 
 ### 2. `tty_set_mode()` and `tty_get_mode()` work
 
@@ -221,6 +221,9 @@ Given:
 the resulting line should be `ac` or `ac\n`, depending on the chosen newline
 policy.
 
+If echo is enabled, the output side should emit the visual erase sequence
+`"\b \b"` when the backspace is processed.
+
 ### 6. `tty_read()` dispatches according to mode
 
 Verify that:
@@ -230,16 +233,27 @@ Verify that:
 
 This test is important because later `read(0, ...)` will depend on it.
 
-### 7. Cooked mode drives display hooks for visible editing behavior
+### 7. `tty_write()` forwards bytes to the output backend
 
-The tests should verify that cooked mode uses the presentation hooks rather
-than depending directly on VGA memory.
+The tests should verify that terminal output goes through the injected byte
+writer rather than through VGA-specific callbacks.
 
 At minimum, verify:
 
-- printable characters call `write_char`
-- Backspace calls `backspace`
-- Enter calls `newline`
+- `tty_write()` passes the provided bytes through unchanged
+- the writer receives the same byte sequence
+- the return value is propagated correctly
+
+### 8. Cooked mode echoes through `tty_write()`
+
+The tests should verify that cooked reads produce visible output when echo is
+enabled.
+
+At minimum, verify:
+
+- normal printable input echoes the same bytes
+- Enter echoes `'\n'`
+- Backspace echoes `"\b \b"`
 
 ## Suggested Minimal Internal Design
 
@@ -251,8 +265,10 @@ Reasonable first fields:
 ```c
 struct tty {
     enum tty_mode mode;
+    bool echo_enabled;
     tty_input_reader_t read_input_byte_blocking;
-    const struct tty_display *display;
+    tty_output_writer_t write_output;
+    void *output_ctx;
 };
 ```
 
@@ -276,20 +292,23 @@ Expected input to the TTY:
 
 This task is not the place to add keyboard-layout translation.
 
-## Echo Behavior
+## Output Behavior
 
 The TTY module should not depend directly on `console.c` or raw VGA memory.
 
-Instead, it should optionally use presentation hooks supplied at `tty_init()`.
-That gives the module a clean way to express terminal-visible behavior while
-keeping the rendering backend replaceable.
+Instead, it should expose `tty_write()` and use an injected byte-stream writer
+backend. That gives the module a more terminal-like shape and keeps the output
+backend replaceable.
 
 For this task:
 
-- production code will later provide console-backed hooks
-- hosted unit tests should provide mock hooks
-- tests should assert against recorded hook activity
+- production code will later provide a console-backed writer
+- hosted unit tests should provide a mock writer
+- tests should assert against recorded output bytes
 - direct VGA buffer assumptions are not part of the TTY API
+
+Cooked-mode echo should use this writer path rather than special display-only
+callbacks. That keeps the design closer to a real terminal byte stream.
 
 ## Definition Of Done
 

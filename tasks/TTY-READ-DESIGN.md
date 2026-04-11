@@ -114,10 +114,11 @@ It should not own:
 The TTY layer owns:
 
 - current mode: raw or cooked
-- conversion from scancodes to user-visible input bytes
+- whether terminal echo is enabled
+- interpretation of terminal input bytes according to terminal mode
 - backspace and Enter behavior in cooked mode
 - deciding how `read(0, ...)` behaves
-- optional echo via abstract presentation hooks
+- terminal output writes via a byte-stream writer backend
 
 It should not own:
 
@@ -222,26 +223,25 @@ enum tty_mode {
 
 struct tty {
     enum tty_mode mode;
+    bool echo_enabled;
     tty_input_reader_t read_input_byte_blocking;
-    const struct tty_display *display;
+    tty_output_writer_t write_output;
+    void *output_ctx;
 };
 
-struct tty_display {
-    void (*write_char)(void *ctx, char ch);
-    void (*backspace)(void *ctx);
-    void (*newline)(void *ctx);
-    void *ctx;
-};
+typedef int (*tty_output_writer_t)(void *ctx, const char *buf, int len);
 
 void tty_init(
     struct tty *tty,
     tty_input_reader_t reader,
-    const struct tty_display *display
+    tty_output_writer_t writer,
+    void *output_ctx
 );
 void tty_set_mode(struct tty *tty, enum tty_mode mode);
 enum tty_mode tty_get_mode(const struct tty *tty);
 char tty_read_raw_blocking(struct tty *tty);
 int tty_read(struct tty *tty, char *buf, int len);
+int tty_write(struct tty *tty, const char *buf, int len);
 ```
 
 Notes:
@@ -251,6 +251,7 @@ Notes:
 - `tty_read()` is the entry used by `read(0, ...)`
 - in raw mode, `tty_read()` should return as soon as characters are available
 - in cooked mode, `tty_read()` should return one edited line after Enter
+- cooked-mode echo should go through `tty_write()`, not through keyboard/input layers
 
 If wanted, a helper such as `tty_read_cooked_blocking()` can exist privately
 inside `tty.c`.
@@ -276,9 +277,11 @@ Cooked mode should be minimal but deterministic.
 For this slice:
 
 - printable characters append to a line buffer
-- characters are echoed through the TTY display hooks
+- if `echo_enabled` is true, printable characters are echoed through `tty_write()`
 - Backspace removes one buffered character if possible
+- if `echo_enabled` is true, Backspace should emit the visual erase sequence `"\b \b"`
 - Enter finalizes the line
+- if `echo_enabled` is true, Enter should emit `"\n"` through `tty_write()`
 - `tty_read()` returns after Enter
 - the returned buffer should be NUL-terminated if space allows
 
@@ -326,7 +329,7 @@ Recommended temporary flow:
 1. boot and print startup text
 2. initialize keyboard, input, and TTY
 3. repeatedly call `read(0, ...)`
-4. or let the TTY drive echo through console-backed display hooks
+4. or let the TTY drive echo through a console-backed writer
 
 That preserves the current user-visible behavior while moving all echoing out
 of interrupt context.
@@ -345,7 +348,7 @@ But the implementation path must become:
 - IRQ1 reads scancode and forwards it
 - input system translates and buffers terminal bytes
 - main kernel read path consumes via TTY
-- normal code echoes to the console
+- TTY echo reaches the console through the TTY output writer
 
 The test should validate the new architecture indirectly by keeping the same
 observable output while the interrupt path becomes simpler.

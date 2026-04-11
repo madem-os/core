@@ -26,6 +26,7 @@ run_test() {
         "${CFLAGS[@]}" \
         "${ROOT}/src/input/input_ring.c" \
         "${ROOT}/src/input/input.c" \
+        "${ROOT}/src/tty/tty.c" \
         "${ROOT}/tests/unit/test.c" \
         "${source_file}" \
         -o "${output_file}"
