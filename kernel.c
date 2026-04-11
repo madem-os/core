@@ -24,6 +24,7 @@
 
 #include "arch/x86/idt.h"
 #include "arch/x86/irq.h"
+#include "arch/x86/lowlevel.h"
 #include "arch/x86/pic.h"
 #include "arch/x86/drivers/keyboard.h"
 #include "arch/x86/drivers/vga_display.h"
@@ -42,26 +43,6 @@
 #else
 #define KERNEL_ENTRY_SECTION
 #endif
-
-__attribute__((naked, used)) KERNEL_ENTRY_SECTION
-void kernel_entry(void) {
-    __asm__ volatile (
-        "cli\n"
-        "cld\n"
-        "mov $0x10, %ax\n"
-        "mov %ax, %ds\n"
-        "mov %ax, %es\n"
-        "mov %ax, %fs\n"
-        "mov %ax, %gs\n"
-        "mov %ax, %ss\n"
-        "mov $0x00090000, %esp\n"
-        "call kmain\n"
-        "1:\n"
-        "hlt\n"
-        "jmp 1b\n"
-    );
-}
-
 
 struct tty global_tty;
 struct text_console global_text_console;
@@ -93,8 +74,8 @@ void kmain(void) {
     kernel_process.entry_point = (uintptr_t)user_main;
     kernel_process.user_stack_top = (uintptr_t)(user_stack + sizeof(user_stack));
     process_set_current(&kernel_process);
-    
-    asm volatile("sti");
+
+    x86_enable_interrupts();
 
     kwrite(1, "welcome to Madem-OS!\n", 21);
     x86_enter_usermode(

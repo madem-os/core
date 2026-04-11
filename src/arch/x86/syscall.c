@@ -42,22 +42,3 @@ void syscall_init(void) {
         IDT_USER_TRAP_GATE
     );
 }
-
-__asm__(
-".global x86_syscall_stub               \n"
-"x86_syscall_stub:                      \n"
-"    pusha                              \n"
-"    mov 28(%esp), %eax                 \n"
-"    mov 16(%esp), %ebx                 \n"
-"    mov 24(%esp), %ecx                 \n"
-"    mov 20(%esp), %edx                 \n"
-"    push %edx                          \n"
-"    push %ecx                          \n"
-"    push %ebx                          \n"
-"    push %eax                          \n"
-"    call x86_syscall_handle            \n"
-"    add $16, %esp                      \n"
-"    mov %eax, 28(%esp)                 \n"
-"    popa                               \n"
-"    iret                               \n"
-);

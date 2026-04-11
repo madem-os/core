@@ -12,18 +12,7 @@
 #include "kernel/syscall.h"
 #include "user/syscall.h"
 
-static int user_syscall3(int number, int arg1, int arg2, int arg3) {
-    int result;
-
-    __asm__ volatile (
-        "int $0x80"
-        : "=a"(result)
-        : "a"(number), "b"(arg1), "c"(arg2), "d"(arg3)
-        : "memory"
-    );
-
-    return result;
-}
+extern int user_syscall3(int number, int arg1, int arg2, int arg3);
 
 int read(int fd, char *buf, int len) {
     return user_syscall3(SYS_READ, fd, (int)buf, len);

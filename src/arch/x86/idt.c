@@ -21,6 +21,7 @@
 #include <stdint.h>
 
 #include "arch/x86/idt.h"
+#include "arch/x86/lowlevel.h"
 
 struct IDTEntry {
     uint16_t offset_low;
@@ -62,5 +63,5 @@ void idt_init(void) {
     idt_ptr.limit = sizeof(idt) - 1;
     idt_ptr.base = (uint32_t)&idt;
 
-    asm volatile("lidt %0" : : "m"(idt_ptr));
+    x86_load_idt(&idt_ptr);
 }

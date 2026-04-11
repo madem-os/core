@@ -165,23 +165,25 @@ dd if="${BOOT_BIN}" of="${DISK_IMAGE}" bs=512 conv=notrunc
 
 KERNEL_OBJECTS=("${KERNEL_OBJ}")
 
-if [[ -d src ]]; then
-    while IFS= read -r -d '' source_file; do
-        object_file="${BUILD_OBJ_DIR}/${source_file%.c}.o"
-        mkdir -p "$(dirname "${object_file}")"
-        "${CC}" "${INCLUDE_FLAGS[@]}" "${CFLAGS[@]}" "${source_file}" -o "${object_file}"
-        KERNEL_OBJECTS+=("${object_file}")
-    done < <(find src -type f -name '*.c' -print0)
-fi
+compile_source_tree() {
+    local source_root="$1"
+    local source_file=""
+    local object_file=""
 
-if [[ -d user ]]; then
+    if [[ ! -d "${source_root}" ]]; then
+        return 0
+    fi
+
     while IFS= read -r -d '' source_file; do
-        object_file="${BUILD_OBJ_DIR}/${source_file%.c}.o"
+        object_file="${BUILD_OBJ_DIR}/${source_file%.*}.o"
         mkdir -p "$(dirname "${object_file}")"
         "${CC}" "${INCLUDE_FLAGS[@]}" "${CFLAGS[@]}" "${source_file}" -o "${object_file}"
         KERNEL_OBJECTS+=("${object_file}")
-    done < <(find user -type f -name '*.c' -print0)
-fi
+    done < <(find "${source_root}" -type f \( -name '*.c' -o -name '*.S' \) -print0)
+}
+
+compile_source_tree src
+compile_source_tree user
 
 "${LD_BIN}" -m elf_i386 -T link.ld -o "${KERNEL_ELF}" "${KERNEL_OBJECTS[@]}"
 "${OBJCOPY_BIN}" -O binary "${KERNEL_ELF}" "${KERNEL_BIN}"
