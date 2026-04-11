@@ -175,7 +175,7 @@ compile_source_tree() {
     fi
 
     while IFS= read -r -d '' source_file; do
-        object_file="${BUILD_OBJ_DIR}/${source_file%.*}.o"
+        object_file="${BUILD_OBJ_DIR}/${source_file}.o"
         mkdir -p "$(dirname "${object_file}")"
         "${CC}" "${INCLUDE_FLAGS[@]}" "${CFLAGS[@]}" "${source_file}" -o "${object_file}"
         KERNEL_OBJECTS+=("${object_file}")

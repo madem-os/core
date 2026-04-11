@@ -25,6 +25,7 @@
 #include "arch/x86/idt.h"
 #include "arch/x86/irq.h"
 #include "arch/x86/lowlevel.h"
+#include "arch/x86/paging.h"
 #include "arch/x86/pic.h"
 #include "arch/x86/drivers/keyboard.h"
 #include "arch/x86/drivers/vga_display.h"
@@ -53,6 +54,7 @@ static uint8_t user_stack[4096];
 char buf[256];
 
 void kmain(void) {
+    paging_init_identity();
 
     idt_init();
     pic_init();
