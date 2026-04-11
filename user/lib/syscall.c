@@ -10,15 +10,14 @@
  */
 
 #include "kernel/syscall.h"
-#include "user/section.h"
 #include "user/syscall.h"
 
 extern int user_syscall3(int number, int arg1, int arg2, int arg3);
 
-USER_TEXT int read(int fd, char *buf, int len) {
+int read(int fd, char *buf, int len) {
     return user_syscall3(SYS_READ, fd, (int)buf, len);
 }
 
-USER_TEXT int write(int fd, const char *buf, int len) {
+int write(int fd, const char *buf, int len) {
     return user_syscall3(SYS_WRITE, fd, (int)buf, len);
 }

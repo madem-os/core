@@ -146,6 +146,8 @@ require_tool \
 BUILD_DIR="bin"
 BOOT_BIN="${BUILD_DIR}/bootS.bin"
 BUILD_OBJ_DIR="${BUILD_DIR}/obj"
+USER_BUILD_DIR="${BUILD_DIR}/user"
+USER_BUILD_OBJ_DIR="${BUILD_OBJ_DIR}/user"
 KERNEL_OBJ="${BUILD_OBJ_DIR}/kernel.o"
 KERNEL_ELF="${BUILD_DIR}/kernel.elf"
 KERNEL_BIN="${BUILD_DIR}/kernel.bin"
@@ -155,7 +157,7 @@ INCLUDE_FLAGS=(
     -Iinclude
 )
 
-mkdir -p "${BUILD_DIR}" "${BUILD_OBJ_DIR}"
+mkdir -p "${BUILD_DIR}" "${BUILD_OBJ_DIR}" "${USER_BUILD_DIR}" "${USER_BUILD_OBJ_DIR}"
 
 "${NASM}" -f bin bootS.asm -o "${BOOT_BIN}"
 "${TRUNCATE_BIN}" -s "${DISK_SIZE}" "${DISK_IMAGE}"
@@ -164,9 +166,12 @@ dd if="${BOOT_BIN}" of="${DISK_IMAGE}" bs=512 conv=notrunc
 "${CC}" "${INCLUDE_FLAGS[@]}" "${CFLAGS[@]}" kernel.c -o "${KERNEL_OBJ}"
 
 KERNEL_OBJECTS=("${KERNEL_OBJ}")
+USER_OBJECTS=()
 
 compile_source_tree() {
     local source_root="$1"
+    local build_root="$2"
+    local array_name="$3"
     local source_file=""
     local object_file=""
 
@@ -175,15 +180,50 @@ compile_source_tree() {
     fi
 
     while IFS= read -r -d '' source_file; do
-        object_file="${BUILD_OBJ_DIR}/${source_file}.o"
+        object_file="${build_root}/${source_file}.o"
         mkdir -p "$(dirname "${object_file}")"
         "${CC}" "${INCLUDE_FLAGS[@]}" "${CFLAGS[@]}" "${source_file}" -o "${object_file}"
-        KERNEL_OBJECTS+=("${object_file}")
+        eval "${array_name}+=(\"\${object_file}\")"
     done < <(find "${source_root}" -type f \( -name '*.c' -o -name '*.S' \) -print0)
 }
 
-compile_source_tree src
-compile_source_tree user
+compile_source_tree src "${BUILD_OBJ_DIR}" KERNEL_OBJECTS
+
+build_user_program() {
+    local app_name="$1"
+    local app_source="$2"
+    local user_elf="${USER_BUILD_DIR}/${app_name}.elf"
+    local user_blob_obj="${USER_BUILD_OBJ_DIR}/${app_name}_elf_blob.o"
+    local user_objects=()
+
+    while IFS= read -r -d '' source_file; do
+        object_file="${USER_BUILD_OBJ_DIR}/${source_file}.o"
+        mkdir -p "$(dirname "${object_file}")"
+        "${CC}" "${INCLUDE_FLAGS[@]}" "${CFLAGS[@]}" "${source_file}" -o "${object_file}"
+        user_objects+=("${object_file}")
+    done < <(find user/lib -type f \( -name '*.c' -o -name '*.S' \) -print0)
+
+    object_file="${USER_BUILD_OBJ_DIR}/${app_source}.o"
+    mkdir -p "$(dirname "${object_file}")"
+    "${CC}" "${INCLUDE_FLAGS[@]}" "${CFLAGS[@]}" "${app_source}" -o "${object_file}"
+    user_objects+=("${object_file}")
+
+    "${LD_BIN}" -m elf_i386 -T user/link.ld -o "${user_elf}" "${user_objects[@]}"
+
+    "${OBJCOPY_BIN}" \
+        -I binary \
+        -O elf32-i386 \
+        -B i386 \
+        --rename-section .data=.rodata.user_image,alloc,load,readonly,data,contents \
+        --redefine-sym _binary_bin_user_${app_name}_elf_start=_user_${app_name}_elf_start \
+        --redefine-sym _binary_bin_user_${app_name}_elf_end=_user_${app_name}_elf_end \
+        "${user_elf}" \
+        "${user_blob_obj}"
+
+    KERNEL_OBJECTS+=("${user_blob_obj}")
+}
+
+build_user_program echo_line user/apps/echo_line.c
 
 "${LD_BIN}" -m elf_i386 -T link.ld -o "${KERNEL_ELF}" "${KERNEL_OBJECTS[@]}"
 "${OBJCOPY_BIN}" -O binary "${KERNEL_ELF}" "${KERNEL_BIN}"

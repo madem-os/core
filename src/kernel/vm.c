@@ -100,14 +100,120 @@ static void *vm_alloc_pages_from_runtime(
     return base;
 }
 
+struct vm_elf32_ehdr {
+    uint8_t e_ident[16];
+    uint16_t e_type;
+    uint16_t e_machine;
+    uint32_t e_version;
+    uint32_t e_entry;
+    uint32_t e_phoff;
+    uint32_t e_shoff;
+    uint32_t e_flags;
+    uint16_t e_ehsize;
+    uint16_t e_phentsize;
+    uint16_t e_phnum;
+    uint16_t e_shentsize;
+    uint16_t e_shnum;
+    uint16_t e_shstrndx;
+} __attribute__((packed));
+
+struct vm_elf32_phdr {
+    uint32_t p_type;
+    uint32_t p_offset;
+    uint32_t p_vaddr;
+    uint32_t p_paddr;
+    uint32_t p_filesz;
+    uint32_t p_memsz;
+    uint32_t p_flags;
+    uint32_t p_align;
+} __attribute__((packed));
+
+#define VM_ELF_MAGIC0 0x7Fu
+#define VM_ELF_MAGIC1 'E'
+#define VM_ELF_MAGIC2 'L'
+#define VM_ELF_MAGIC3 'F'
+#define VM_ELFCLASS32 1u
+#define VM_ELFDATA2LSB 1u
+#define VM_ET_EXEC 2u
+#define VM_EM_386 3u
+#define VM_EV_CURRENT 1u
+#define VM_PT_LOAD 1u
+
 #if defined(__ELF__) && defined(__i386__)
-extern uint8_t _user_image_load_start[];
-extern uint8_t _user_image_load_end[];
-extern uint8_t _user_image_start[];
-extern uint8_t _user_image_end[];
-extern uint8_t _user_image_entry[];
+extern uint8_t _user_echo_line_elf_start[];
+extern uint8_t _user_echo_line_elf_end[];
 static struct vm_user_image default_user_image;
 #endif
+
+int vm_user_image_from_elf(
+    struct vm_user_image *user_image,
+    const uint8_t *elf_bytes,
+    size_t elf_size
+) {
+    const struct vm_elf32_ehdr *ehdr;
+    const struct vm_elf32_phdr *phdrs;
+    const struct vm_elf32_phdr *load_phdr;
+    uint16_t index;
+
+    if (user_image == NULL || elf_bytes == NULL || elf_size < sizeof(*ehdr)) {
+        return -1;
+    }
+
+    ehdr = (const struct vm_elf32_ehdr *)elf_bytes;
+    if (
+        ehdr->e_ident[0] != VM_ELF_MAGIC0 ||
+        ehdr->e_ident[1] != VM_ELF_MAGIC1 ||
+        ehdr->e_ident[2] != VM_ELF_MAGIC2 ||
+        ehdr->e_ident[3] != VM_ELF_MAGIC3 ||
+        ehdr->e_ident[4] != VM_ELFCLASS32 ||
+        ehdr->e_ident[5] != VM_ELFDATA2LSB ||
+        ehdr->e_type != VM_ET_EXEC ||
+        ehdr->e_machine != VM_EM_386 ||
+        ehdr->e_version != VM_EV_CURRENT ||
+        ehdr->e_ehsize != sizeof(*ehdr) ||
+        ehdr->e_phentsize != sizeof(struct vm_elf32_phdr)
+    ) {
+        return -1;
+    }
+
+    if (
+        ehdr->e_phoff > elf_size ||
+        (size_t)ehdr->e_phnum * sizeof(struct vm_elf32_phdr) > elf_size - ehdr->e_phoff
+    ) {
+        return -1;
+    }
+
+    phdrs = (const struct vm_elf32_phdr *)(elf_bytes + ehdr->e_phoff);
+    load_phdr = NULL;
+    for (index = 0; index < ehdr->e_phnum; index++) {
+        if (phdrs[index].p_type != VM_PT_LOAD) {
+            continue;
+        }
+
+        if (load_phdr != NULL) {
+            return -1;
+        }
+        load_phdr = &phdrs[index];
+    }
+
+    if (
+        load_phdr == NULL ||
+        load_phdr->p_vaddr != USER_TEXT_BASE ||
+        load_phdr->p_filesz > load_phdr->p_memsz ||
+        load_phdr->p_offset > elf_size ||
+        load_phdr->p_filesz > elf_size - load_phdr->p_offset ||
+        ehdr->e_entry < load_phdr->p_vaddr ||
+        ehdr->e_entry >= load_phdr->p_vaddr + load_phdr->p_memsz
+    ) {
+        return -1;
+    }
+
+    user_image->load_start = elf_bytes + load_phdr->p_offset;
+    user_image->load_size = load_phdr->p_filesz;
+    user_image->memory_size = load_phdr->p_memsz;
+    user_image->entry_offset = ehdr->e_entry - load_phdr->p_vaddr;
+    return 0;
+}
 
 size_t vm_page_count(size_t byte_count) {
     if (byte_count == 0) {
@@ -310,14 +416,16 @@ struct vm_runtime *vm_default_runtime(void) {
 
 const struct vm_user_image *vm_default_user_image(void) {
 #if defined(__ELF__) && defined(__i386__)
-    default_user_image.load_start = _user_image_load_start;
-    default_user_image.load_size =
-        (size_t)(_user_image_load_end - _user_image_load_start);
-    default_user_image.memory_size =
-        (size_t)(_user_image_end - _user_image_start);
-    default_user_image.entry_offset =
-        (uintptr_t)(_user_image_entry - _user_image_start);
-    return &default_user_image;
+    if (
+        vm_user_image_from_elf(
+            &default_user_image,
+            _user_echo_line_elf_start,
+            (size_t)(_user_echo_line_elf_end - _user_echo_line_elf_start)
+        ) == 0
+    ) {
+        return &default_user_image;
+    }
+    return NULL;
 #else
     return NULL;
 #endif

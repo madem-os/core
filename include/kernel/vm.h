@@ -106,6 +106,13 @@ struct vm_runtime {
     vm_load_page_directory_fn load_page_directory;
 };
 
+/* Parses a built-in ELF user program into the compact vm_user_image shape. */
+int vm_user_image_from_elf(
+    struct vm_user_image *user_image,
+    const uint8_t *elf_bytes,
+    size_t elf_size
+);
+
 /* Returns how many 4 KiB pages are required to cover byte_count bytes. */
 size_t vm_page_count(size_t byte_count);
 /* Returns the base address of the guard page immediately below a user stack region. */

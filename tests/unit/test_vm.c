@@ -167,6 +167,68 @@ static void test_vm_activate_process_loads_physical_page_directory(void) {
     EXPECT_EQ_U32((uint32_t)(uintptr_t)page_directory, test_last_loaded_page_directory);
 }
 
+static void test_vm_user_image_from_elf_parses_single_load_segment(void) {
+    uint8_t elf_bytes[0x80] = {0};
+    struct vm_user_image image;
+    uint32_t entry;
+    uint32_t phoff;
+    uint32_t p_offset;
+    uint32_t p_vaddr;
+    uint32_t p_filesz;
+    uint32_t p_memsz;
+
+    elf_bytes[0] = 0x7Fu;
+    elf_bytes[1] = 'E';
+    elf_bytes[2] = 'L';
+    elf_bytes[3] = 'F';
+    elf_bytes[4] = 1u;
+    elf_bytes[5] = 1u;
+    elf_bytes[16] = 2u;
+    elf_bytes[18] = 3u;
+    elf_bytes[20] = 1u;
+    elf_bytes[40] = 52u;
+    elf_bytes[42] = 32u;
+    elf_bytes[44] = 1u;
+
+    entry = USER_TEXT_BASE + 0x04u;
+    phoff = 52u;
+    p_offset = 0x40u;
+    p_vaddr = USER_TEXT_BASE;
+    p_filesz = 4u;
+    p_memsz = 8u;
+
+    elf_bytes[24] = (uint8_t)(entry & 0xFFu);
+    elf_bytes[25] = (uint8_t)((entry >> 8) & 0xFFu);
+    elf_bytes[26] = (uint8_t)((entry >> 16) & 0xFFu);
+    elf_bytes[27] = (uint8_t)((entry >> 24) & 0xFFu);
+    elf_bytes[28] = (uint8_t)(phoff & 0xFFu);
+    elf_bytes[29] = (uint8_t)((phoff >> 8) & 0xFFu);
+
+    elf_bytes[52] = 1u;
+    elf_bytes[56] = (uint8_t)(p_offset & 0xFFu);
+    elf_bytes[57] = (uint8_t)((p_offset >> 8) & 0xFFu);
+    elf_bytes[60] = (uint8_t)(p_vaddr & 0xFFu);
+    elf_bytes[61] = (uint8_t)((p_vaddr >> 8) & 0xFFu);
+    elf_bytes[62] = (uint8_t)((p_vaddr >> 16) & 0xFFu);
+    elf_bytes[63] = (uint8_t)((p_vaddr >> 24) & 0xFFu);
+    elf_bytes[68] = (uint8_t)(p_filesz & 0xFFu);
+    elf_bytes[72] = (uint8_t)(p_memsz & 0xFFu);
+    elf_bytes[64] = 0u;
+    elf_bytes[65] = 0u;
+    elf_bytes[66] = 0u;
+    elf_bytes[67] = 0u;
+    elf_bytes[0x40] = 'T';
+    elf_bytes[0x41] = 'E';
+    elf_bytes[0x42] = 'S';
+    elf_bytes[0x43] = 'T';
+
+    EXPECT_TRUE(vm_user_image_from_elf(&image, elf_bytes, sizeof(elf_bytes)) == 0);
+    EXPECT_TRUE(image.load_start == &elf_bytes[0x40]);
+    EXPECT_EQ_U32(4u, (uint32_t)image.load_size);
+    EXPECT_EQ_U32(8u, (uint32_t)image.memory_size);
+    EXPECT_EQ_U32(0x04u, (uint32_t)image.entry_offset);
+}
+
 int main(void) {
     RUN_TEST(test_vm_space_init_sets_fixed_user_contract);
     RUN_TEST(test_vm_page_count_rounds_up_by_page_size);
@@ -174,5 +236,6 @@ int main(void) {
     RUN_TEST(test_vm_build_process_page_tables_sets_kernel_and_user_regions);
     RUN_TEST(test_vm_init_process_copies_user_image_and_sets_entry);
     RUN_TEST(test_vm_activate_process_loads_physical_page_directory);
+    RUN_TEST(test_vm_user_image_from_elf_parses_single_load_segment);
     return test_failures_total == 0 ? 0 : 1;
 }

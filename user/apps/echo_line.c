@@ -7,12 +7,11 @@
  */
 
 #include "user/entry.h"
-#include "user/section.h"
 #include "user/syscall.h"
 
-static const char user_mode_ready[] USER_RODATA = "user mode ready\n";
+static const char user_mode_ready[] = "user mode ready\n";
 
-USER_TEXT void user_main(void) {
+void user_main(void) {
     char buf[128];
 
     (void)write(1, user_mode_ready, (int)(sizeof(user_mode_ready) - 1u));
