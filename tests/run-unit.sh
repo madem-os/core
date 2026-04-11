@@ -31,6 +31,7 @@ run_test() {
         "${ROOT}/src/console/text_console.c" \
         "${ROOT}/src/kernel/process.c" \
         "${ROOT}/src/kernel/io.c" \
+        "${ROOT}/src/kernel/syscall.c" \
         "${ROOT}/tests/unit/test.c" \
         "${source_file}" \
         -o "${output_file}"

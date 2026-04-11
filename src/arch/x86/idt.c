@@ -38,12 +38,16 @@ struct IDTPtr {
 static struct IDTEntry idt[256];
 static struct IDTPtr idt_ptr;
 
-void idt_set_gate(uint8_t vector, uint32_t handler) {
+void idt_set_gate_with_type_attr(uint8_t vector, uint32_t handler, uint8_t type_attr) {
     idt[vector].offset_low = handler & 0xFFFF;
     idt[vector].selector = 0x08;
     idt[vector].zero = 0;
-    idt[vector].type_attr = 0x8E;
+    idt[vector].type_attr = type_attr;
     idt[vector].offset_high = (handler >> 16) & 0xFFFF;
+}
+
+void idt_set_gate(uint8_t vector, uint32_t handler) {
+    idt_set_gate_with_type_attr(vector, handler, 0x8E);
 }
 
 void idt_init(void) {

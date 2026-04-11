@@ -19,5 +19,6 @@
 
 void idt_init(void);
 void idt_set_gate(uint8_t vector, uint32_t handler);
+void idt_set_gate_with_type_attr(uint8_t vector, uint32_t handler, uint8_t type_attr);
 
 #endif

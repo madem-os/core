@@ -27,6 +27,7 @@
 #include "arch/x86/pic.h"
 #include "arch/x86/drivers/keyboard.h"
 #include "arch/x86/drivers/vga_display.h"
+#include "arch/x86/syscall.h"
 #include "console/display.h"
 #include "console/text_console.h"
 #include "input/input.h"
@@ -72,6 +73,7 @@ void kmain(void) {
     idt_init();
     pic_init();
     irq_init();
+    syscall_init();
     input_init();
     keyboard_init(input_handle_scancode);
 
