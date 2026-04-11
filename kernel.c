@@ -101,8 +101,8 @@ void kmain(void) {
 
     x86_enable_interrupts();
 
-    kwrite(1, "welcome to Madem-OS!\n", 21);
-    kwrite(1, "kernel_entry=", 13);
+    kwrite(1, "Welcome to Madem-OS!\n", 21);
+    kwrite(1, "Kernel_entry=", 13);
     kwrite_hex32(1, (uint32_t)(uintptr_t)kernel_entry);
     kwrite(1, "\n", 1);
     vm_activate_process(&kernel_process, vm_default_runtime());

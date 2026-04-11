@@ -9,7 +9,7 @@
 #include "user/entry.h"
 #include "user/syscall.h"
 
-static const char user_mode_ready[] = "user mode ready\n";
+static const char user_mode_ready[] = "User mode ready\n";
 
 int main(int argc, char **argv) {
     char buf[128];

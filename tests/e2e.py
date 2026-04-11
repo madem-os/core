@@ -132,19 +132,19 @@ class QemuSession:
 def test_boot_text(session: QemuSession) -> None:
     vga_text = session.dump_vga_text()
 
-    if "welcome to Madem-OS!" not in vga_text:
+    if "Welcome to Madem-OS!" not in vga_text:
         raise AssertionError(
             "Missing expected boot banner.\n"
             f"Actual VGA text: {vga_text!r}"
         )
 
-    if "kernel_entry=0xC0100000" not in vga_text:
+    if "Kernel_entry=0xC0100000" not in vga_text:
         raise AssertionError(
             "Missing expected higher-half kernel address print.\n"
             f"Actual VGA text: {vga_text!r}"
         )
 
-    if "user mode ready" not in vga_text:
+    if "User mode ready" not in vga_text:
         raise AssertionError(
             "Missing expected user mode startup text.\n"
             f"Actual VGA text: {vga_text!r}"
