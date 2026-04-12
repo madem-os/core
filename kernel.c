@@ -23,9 +23,11 @@
 #include <stdint.h>
 
 #include "arch/x86/exceptions.h"
+#include "arch/x86/gdt.h"
 #include "arch/x86/idt.h"
 #include "arch/x86/irq.h"
 #include "arch/x86/lowlevel.h"
+#include "arch/x86/paging.h"
 #include "arch/x86/pic.h"
 #include "arch/x86/drivers/keyboard.h"
 #include "arch/x86/drivers/vga_display.h"
@@ -60,6 +62,8 @@ void kmain(void) {
     const struct user_program *initial_program;
     struct vm_user_image initial_user_image;
 
+    gdt_init();
+    paging_unmap_bootstrap_low_alias();
     idt_init();
     exceptions_init();
     pic_init();

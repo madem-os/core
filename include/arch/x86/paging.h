@@ -1,19 +1,17 @@
 /*
  * x86 Paging Interface
  *
- * This header declares the first paging bring-up entry point used by the
- * kernel during stage 4.1 of the virtual-memory plan.
+ * This header declares the small paging hooks used during early higher-half
+ * kernel bring-up.
  *
  * Responsibilities in this header:
- * - expose minimal paging initialization for the current identity-mapped
- *   bring-up step
+ * - expose the bootstrap paging enable path
+ * - expose the CR3 reload hook used by the VM layer
+ * - expose the helper that drops the temporary low bootstrap alias
  * - keep CR3/CR0 details private to the x86 paging implementation
- * - provide one stable entry point the kernel can call early in boot
  *
  * This stage intentionally does not expose general page-mapping APIs,
- * address-space objects, or user-pointer validation. It only turns paging on
- * in a way that preserves the current low-address execution model so the
- * existing usermode and e2e path keep working.
+ * address-space objects, or user-pointer validation.
  */
 
 #ifndef ARCH_X86_PAGING_H
@@ -21,5 +19,6 @@
 
 void paging_init_identity(void);
 void paging_load_page_directory(const void *page_directory);
+void paging_unmap_bootstrap_low_alias(void);
 
 #endif

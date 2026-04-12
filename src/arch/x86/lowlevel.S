@@ -22,6 +22,18 @@ x86_load_idt:
     lidt (%eax)
     ret
 
+    .global x86_load_gdt
+x86_load_gdt:
+    mov 4(%esp), %eax
+    lgdt (%eax)
+    ret
+
+    .global x86_load_task_register
+x86_load_task_register:
+    mov 4(%esp), %ax
+    ltr %ax
+    ret
+
     .global x86_enable_interrupts
 x86_enable_interrupts:
     sti

@@ -25,8 +25,6 @@
 
 /* Base virtual address of the shared higher-half kernel mapping. */
 #define VM_KERNEL_VIRT_BASE         0xC0000000u
-/* Low identity-mapped range kept available while the early kernel still uses it. */
-#define VM_KERNEL_LOW_IDENTITY_BYTES (4u * 1024u * 1024u)
 /* Total higher-half kernel window installed into each process page directory. */
 #define VM_KERNEL_HIGH_MAP_BYTES    (16u * 1024u * 1024u)
 
@@ -84,8 +82,6 @@ struct vm_user_image {
 struct vm_runtime {
     /* Page directory backing the process address space being built. */
     uint32_t *page_directory;
-    /* Low identity-mapped kernel page table carried into the process CR3. */
-    uint32_t *kernel_low_page_table;
     /* Higher-half kernel page tables reused in the process CR3. */
     uint32_t *kernel_high_page_tables;
     /* Number of higher-half kernel page tables available through kernel_high_page_tables. */
@@ -121,13 +117,12 @@ uintptr_t vm_stack_guard_base(uintptr_t stack_top, size_t stack_size);
 void vm_space_init(struct vm_space *space, size_t user_text_size);
 /*
  * Populates a process page directory with:
- * - shared kernel identity and higher-half mappings
+ * - shared higher-half kernel mappings
  * - one user text mapping
  * - one user stack mapping
  */
 void vm_build_process_page_tables(
     uint32_t *page_directory,
-    uint32_t *kernel_low_page_table,
     uint32_t *kernel_high_page_tables,
     uint32_t *user_text_page_table,
     uint32_t *user_stack_page_table,

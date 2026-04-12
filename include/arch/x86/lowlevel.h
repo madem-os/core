@@ -19,6 +19,8 @@
 #include <stdint.h>
 
 void x86_load_idt(const void *idt_ptr);
+void x86_load_gdt(const void *gdt_ptr);
+void x86_load_task_register(uint16_t selector);
 void x86_enable_interrupts(void);
 uint32_t x86_read_cr2(void);
 void x86_halt_forever(void);

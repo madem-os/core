@@ -6,7 +6,8 @@
  * cursor port protocol, while exposing the backend through `struct display`.
  *
  * Responsibilities in this file:
- * - write character/color cells to VGA text memory at 0xB8000
+ * - write character/color cells to the VGA text buffer through its
+ *   higher-half kernel alias
  * - update the hardware cursor through ports 0x3D4 and 0x3D5
  * - initialize a generic display object with VGA-specific geometry and hooks
  *
@@ -25,7 +26,7 @@
 #include "arch/x86/ports.h"
 #include "console/display.h"
 
-#define VGA_TEXT_BUFFER ((uint16_t *)0x000B8000u)
+#define VGA_TEXT_BUFFER ((uint16_t *)0xC00B8000u)
 #define VGA_WIDTH 80u
 #define VGA_HEIGHT 25u
 #define VGA_INDEX_PORT 0x03D4u

@@ -45,8 +45,6 @@ static void test_vm_stack_guard_base_reserves_one_guard_page(void) {
 static void test_vm_build_process_page_tables_sets_kernel_and_user_regions(void) {
     uint32_t page_directory[X86_PAGE_DIRECTORY_ENTRIES]
         __attribute__((aligned(X86_PAGE_SIZE)));
-    uint32_t kernel_low_page_table[X86_PAGE_TABLE_ENTRIES]
-        __attribute__((aligned(X86_PAGE_SIZE)));
     uint32_t kernel_high_page_tables[4][X86_PAGE_TABLE_ENTRIES]
         __attribute__((aligned(X86_PAGE_SIZE)));
     uint32_t user_text_page_table[X86_PAGE_TABLE_ENTRIES]
@@ -66,7 +64,6 @@ static void test_vm_build_process_page_tables_sets_kernel_and_user_regions(void)
 
     vm_build_process_page_tables(
         page_directory,
-        kernel_low_page_table,
         &kernel_high_page_tables[0][0],
         user_text_page_table,
         user_stack_page_table,
@@ -77,11 +74,8 @@ static void test_vm_build_process_page_tables_sets_kernel_and_user_regions(void)
         0x00302000u
     );
 
-    EXPECT_EQ_U32(expected_kernel_flags, page_directory[0] & 0xFFFu);
+    EXPECT_EQ_U32(0u, page_directory[0]);
     EXPECT_EQ_U32(expected_kernel_flags, page_directory[VM_KERNEL_VIRT_BASE >> 22] & 0xFFFu);
-    EXPECT_EQ_U32(expected_kernel_flags, kernel_low_page_table[0] & 0xFFFu);
-    EXPECT_EQ_U32(0x00000000u | expected_kernel_flags, kernel_low_page_table[0]);
-    EXPECT_EQ_U32(0x00001000u | expected_kernel_flags, kernel_low_page_table[1]);
 
     EXPECT_EQ_U32(expected_user_flags, page_directory[USER_TEXT_BASE >> 22] & 0xFFFu);
     EXPECT_EQ_U32(0x00300000u | expected_user_flags, user_text_page_table[0]);
@@ -99,8 +93,6 @@ static void test_vm_init_process_copies_user_image_and_sets_entry(void) {
     static const uint8_t image_bytes[] = {'A', 'B', 'C', 'D'};
     uint32_t page_directory[X86_PAGE_DIRECTORY_ENTRIES]
         __attribute__((aligned(X86_PAGE_SIZE)));
-    uint32_t kernel_low_page_table[X86_PAGE_TABLE_ENTRIES]
-        __attribute__((aligned(X86_PAGE_SIZE)));
     uint32_t kernel_high_page_tables[4][X86_PAGE_TABLE_ENTRIES]
         __attribute__((aligned(X86_PAGE_SIZE)));
     uint32_t user_text_page_table[X86_PAGE_TABLE_ENTRIES]
@@ -110,7 +102,6 @@ static void test_vm_init_process_copies_user_image_and_sets_entry(void) {
     uint8_t frame_pool[4 * X86_PAGE_SIZE] __attribute__((aligned(X86_PAGE_SIZE)));
     struct vm_runtime runtime = {
         page_directory,
-        kernel_low_page_table,
         &kernel_high_page_tables[0][0],
         4u,
         user_text_page_table,
@@ -145,7 +136,6 @@ static void test_vm_activate_process_loads_physical_page_directory(void) {
         __attribute__((aligned(X86_PAGE_SIZE)));
     struct vm_runtime runtime = {
         page_directory,
-        NULL,
         NULL,
         0u,
         NULL,

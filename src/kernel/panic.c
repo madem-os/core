@@ -22,7 +22,7 @@
 #include "console/text_console.h"
 #include "kernel/panic.h"
 
-#define PANIC_VGA_BUFFER ((volatile uint16_t *)0xB8000u)
+#define PANIC_VGA_BUFFER ((volatile uint16_t *)0xC00B8000u)
 #define PANIC_VGA_WIDTH 80u
 #define PANIC_VGA_HEIGHT 25u
 #define PANIC_VGA_COLOR 0x4Fu

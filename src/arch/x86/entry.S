@@ -29,7 +29,7 @@ kernel_entry:
     mov %ax, %fs
     mov %ax, %gs
     mov %ax, %ss
-    mov $0x00090000, %esp
+    mov $0xC0090000, %esp
     call kmain
 1:
     hlt

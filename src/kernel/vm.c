@@ -29,8 +29,6 @@
 #define VM_FRAME_POOL_PAGES 16u
 static uint32_t process_page_directory[X86_PAGE_DIRECTORY_ENTRIES]
     __attribute__((aligned(X86_PAGE_SIZE)));
-static uint32_t process_kernel_low_page_table[X86_PAGE_TABLE_ENTRIES]
-    __attribute__((aligned(X86_PAGE_SIZE)));
 static uint32_t process_kernel_high_page_tables[VM_KERNEL_HIGH_TABLE_COUNT][X86_PAGE_TABLE_ENTRIES]
     __attribute__((aligned(X86_PAGE_SIZE)));
 static uint32_t process_user_text_page_table[X86_PAGE_TABLE_ENTRIES]
@@ -41,7 +39,6 @@ static uint8_t process_frame_pool[VM_FRAME_POOL_PAGES * X86_PAGE_SIZE]
     __attribute__((aligned(X86_PAGE_SIZE)));
 static struct vm_runtime default_vm_runtime = {
     process_page_directory,
-    process_kernel_low_page_table,
     &process_kernel_high_page_tables[0][0],
     VM_KERNEL_HIGH_TABLE_COUNT,
     process_user_text_page_table,
@@ -233,7 +230,6 @@ void vm_space_init(struct vm_space *space, size_t user_text_size) {
 
 void vm_build_process_page_tables(
     uint32_t *page_directory,
-    uint32_t *kernel_low_page_table,
     uint32_t *kernel_high_page_tables,
     uint32_t *user_text_page_table,
     uint32_t *user_stack_page_table,
@@ -268,14 +264,9 @@ void vm_build_process_page_tables(
     }
 
     for (index = 0; index < X86_PAGE_TABLE_ENTRIES; index++) {
-        kernel_low_page_table[index] =
-            ((uint32_t)index * X86_PAGE_SIZE) | kernel_flags;
         user_text_page_table[index] = 0;
         user_stack_page_table[index] = 0;
     }
-
-    page_directory[0] =
-        pointer_to_physical(kernel_low_page_table) | kernel_flags;
 
     for (index = 0; index < kernel_high_table_count; index++) {
         size_t page_index;
@@ -329,7 +320,6 @@ int vm_init_process(
         runtime == NULL ||
         user_image == NULL ||
         runtime->page_directory == NULL ||
-        runtime->kernel_low_page_table == NULL ||
         runtime->kernel_high_page_tables == NULL ||
         runtime->user_text_page_table == NULL ||
         runtime->user_stack_page_table == NULL ||
@@ -361,7 +351,6 @@ int vm_init_process(
 
     vm_build_process_page_tables(
         runtime->page_directory,
-        runtime->kernel_low_page_table,
         runtime->kernel_high_page_tables,
         runtime->user_text_page_table,
         runtime->user_stack_page_table,

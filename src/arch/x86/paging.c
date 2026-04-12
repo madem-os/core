@@ -1,19 +1,19 @@
 /*
  * x86 Paging Bring-Up
  *
- * This file owns the first paging enable step for the kernel. The current
- * stage uses a simple identity-mapped page-table setup so paging can be
- * enabled without changing any virtual addresses yet.
+ * This file owns the small x86 paging hooks used during early higher-half
+ * kernel bring-up.
  *
  * Responsibilities in this file:
- * - define the bootstrap page directory and page tables
- * - identity-map the low memory range currently used by the kernel
+ * - define the original bootstrap identity-mapped page directory and tables
  * - load CR3 and enable paging in CR0
+ * - reload CR3 for later VM activations
+ * - remove the temporary low bootstrap alias once the higher-half kernel is
+ *   fully self-hosted
  *
- * The mappings here are intentionally broad and user-accessible because the
- * current ring-3 program still executes from the kernel-linked low addresses.
- * This stage preserves behavior, not protection. Higher-half kernel mapping
- * and isolated user mappings are later steps.
+ * The bootstrap identity mapping still exists here because it is part of the
+ * original bring-up path, but the normal runtime path now switches to the
+ * higher half and then drops the low alias explicitly.
  */
 
 #include <stdint.h>
@@ -23,6 +23,9 @@
 
 extern void x86_load_page_directory(const void *page_directory);
 extern void x86_enable_paging(void);
+
+#define BOOTSTRAP_PAGE_DIRECTORY_PHYS 0x00020000u
+#define VM_KERNEL_VIRT_BASE 0xC0000000u
 
 static uint32_t kernel_page_directory[X86_PAGE_DIRECTORY_ENTRIES]
     __attribute__((aligned(X86_PAGE_SIZE)));
@@ -45,4 +48,14 @@ void paging_init_identity(void) {
 
 void paging_load_page_directory(const void *page_directory) {
     x86_load_page_directory(page_directory);
+}
+
+void paging_unmap_bootstrap_low_alias(void) {
+    uint32_t *bootstrap_page_directory;
+
+    bootstrap_page_directory =
+        (uint32_t *)(uintptr_t)(VM_KERNEL_VIRT_BASE + BOOTSTRAP_PAGE_DIRECTORY_PHYS);
+
+    bootstrap_page_directory[0] = 0;
+    x86_load_page_directory((const void *)(uintptr_t)BOOTSTRAP_PAGE_DIRECTORY_PHYS);
 }
