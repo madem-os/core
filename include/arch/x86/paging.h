@@ -17,7 +17,6 @@
 #ifndef ARCH_X86_PAGING_H
 #define ARCH_X86_PAGING_H
 
-void paging_init_identity(void);
 void paging_load_page_directory(const void *page_directory);
 void paging_unmap_bootstrap_low_alias(void);
 
