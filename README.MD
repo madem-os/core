@@ -3,10 +3,11 @@
 MademOS is a hobby x86 operating system project built from scratch.
 
 It currently boots through a custom NASM bootloader into a 32-bit freestanding
-kernel, handles keyboard input through IRQs, routes input through an input and
-TTY stack, renders terminal output through a text console layered over a
-generic display interface with an x86 VGA backend, and runs a first built-in
-ring-3 user process through a minimal syscall ABI.
+kernel, enables paging, jumps into a higher-half kernel mapping, handles
+keyboard input through IRQs, routes input through an input and TTY stack,
+renders terminal output through a text console layered over a generic display
+interface with an x86 VGA backend, and runs built-in ring-3 user programs from
+isolated low user mappings through a minimal syscall ABI.
 
 Live demo:
 
@@ -18,27 +19,66 @@ The current stack is:
 
 - boot sector + stage-2 loader
 - protected-mode x86 kernel
+- bootstrap paging bring-up
+- higher-half kernel mapping
 - IDT / PIC / IRQ infrastructure
 - x86 keyboard driver
 - input translation and buffering
 - TTY raw/cooked behavior
 - text console output layer
 - x86 VGA display backend
+- page fault panic path
 - minimal process + fd model
+- process-owned VM state
 - kernel `read` / `write` dispatch
 - `int 0x80` syscall entry
 - ring 3 transition
-- one built-in terminal user program
+- built-in user ELF loading
+- multiple built-in terminal user programs
 
-The current kernel boots, initializes the stack above, enters user mode, and is
-covered by both hosted unit tests and QEMU end-to-end tests.
+The current kernel boots, enables paging, continues execution from the higher
+half, initializes the stack above, enters user mode through a process-owned
+page directory, and is covered by both hosted unit tests and QEMU end-to-end
+tests.
 
 ## Architecture Diagram
 
 ```text
+         boot sector + stage 2 loader
+                      |
+                      v
+          +-----------+------------+
+          | Bootstrap Paging +     |
+          | Higher-Half Jump       |
+          | bootS.asm / link.ld    |
+          +-----------+------------+
+                      |
+                      v
+          +-----------+------------+
+          | Higher-Half Kernel     |
+          | kernel_entry @ 0xC...  |
+          +-----------+------------+
+                      |
+          +-----------+------------+
+          | Built-in User Program  |
+          | Registry + Embedded    |
+          | User ELF Images        |
+          | src/kernel/user_programs|
+          +-----------+------------+
+                      |
+                ELF parse + map
+                      |
+          +-----------v------------+
+          | VM Layer / Page Tables |
+          | src/kernel/vm          |
+          +-----------+------------+
+                      |
+          isolated low user mapping
+                      |
+                      v
                       +-----------------------+
                       |   Built-in User App   |
-                      |   user/apps/echo_line |
+                      | user/apps/echo_line   |
                       +-----------+-----------+
                                   |
                      read/write via int 0x80
@@ -102,6 +142,30 @@ covered by both hosted unit tests and QEMU end-to-end tests.
 ```
 
 ## Milestones
+
+### 2026-04-12: Paging, Higher-Half Kernel, and Isolated User Mappings
+
+This milestone turns the first usermode vertical slice into a real paged
+execution model:
+
+- bootstrap paging is enabled with an initial identity mapping
+- the kernel is linked high and entered through a higher-half virtual address
+- the first process now owns its own page directory and isolated low user text
+  and stack mappings
+- kernel mappings in that process address space are supervisor-only
+- page faults now fail through an explicit panic path instead of silent breakage
+- built-in user programs are built as separate ELF images, embedded into the
+  kernel, and selected through a small registry
+- the build/runtime flow now supports multiple built-in user apps
+
+This is the first milestone where the kernel virtual-memory layout looks like a
+real OS kernel instead of a temporary shared-address-space prototype.
+
+Relevant design docs:
+
+- [tasks/USERMODE-STAGE-4-VIRTUAL-MEMORY.md](tasks/USERMODE-STAGE-4-VIRTUAL-MEMORY.md)
+- [tasks/USERMODE-STAGE-4.2-HIGHER-HALF-KERNEL.md](tasks/USERMODE-STAGE-4.2-HIGHER-HALF-KERNEL.md)
+- [tasks/USERMODE-STAGE-4.3-ISOLATED-USER-MAPPING.md](tasks/USERMODE-STAGE-4.3-ISOLATED-USER-MAPPING.md)
 
 ### 2026-04-11: Minimal Usermode Vertical Slice
 
@@ -198,12 +262,16 @@ Relevant notes:
 - `src/arch/x86/ports.c`: raw x86 port I/O helpers
 - `src/arch/x86/drivers/keyboard.c`: PS/2 keyboard IRQ driver
 - `src/arch/x86/drivers/vga_display.c`: x86 VGA text-mode display backend
+- `src/arch/x86/exceptions.c`: page fault reporting and fatal exception path
 - `src/arch/x86/syscall.c`: x86 `int 0x80` entry path
 - `src/arch/x86/usermode.c`: x86 ring-3 entry helper
+- `src/kernel/bootstrap_paging.c`: testable bootstrap page-table construction
 - `src/input/input.c`: scancode-to-byte translation and buffering
 - `src/input/input_ring.c`: byte ring buffer for the input layer
 - `src/kernel/process.c`: minimal process + stdio descriptor wiring
 - `src/kernel/io.c`: kernel `kread` / `kwrite`
+- `src/kernel/user_programs.c`: built-in user-program registry
+- `src/kernel/vm.c`: user ELF parsing and per-process VM layout
 - `src/kernel/syscall.c`: generic syscall dispatcher
 - `src/tty/tty.c`: raw/cooked TTY behavior and TTY writes
 - `src/console/text_console.c`: terminal-visible output behavior
@@ -351,15 +419,19 @@ They currently cover:
 
 - input translation
 - input ring buffer behavior
+- bootstrap paging layout
 - kernel process and fd dispatch
 - generic syscall dispatch
 - TTY behavior
 - text console behavior
+- VM layout and isolated user mapping policy
+- built-in user-program registry
 
 ## Project Notes
 
 - This is an educational hobby OS project, not a production OS.
 - `src/` + `include/` is the current C project layout.
 - `bin/` is generated and ignored by git.
-- The current usermode milestone uses a shared address space. It proves ring 3
-  execution and syscalls, not full process isolation yet.
+- The current usermode path now runs through a dedicated per-process page
+  directory, but it is still intentionally small: one active process, one low
+  user image, one user stack, and no general frame allocator or demand paging.
