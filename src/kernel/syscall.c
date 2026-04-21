@@ -17,6 +17,7 @@
 
 #include "kernel/io.h"
 #include "kernel/syscall.h"
+#include "kernel/exec.h"
 
 int syscall_dispatch(
     kernel_syscall_arg_t number,
@@ -29,6 +30,9 @@ int syscall_dispatch(
             return kread((int)arg1, (char *)arg2, (int)arg3);
         case SYS_WRITE:
             return kwrite((int)arg1, (const char *)arg2, (int)arg3);
+        case SYS_EXECVE:
+            execve((const char *)arg1);
+            return 0;
         default:
             return -1;
     }

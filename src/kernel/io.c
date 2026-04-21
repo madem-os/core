@@ -66,9 +66,8 @@ int kwrite(int fd, const char *buf, int len) {
     return tty_write((struct tty *)descriptor->object, buf, len);
 }
 
-int kwrite_hex32(int fd, uint32_t value) {
+void int_to_hex32(uint32_t value, char *hex_buffer) {
     static const char hex_digits[] = "0123456789ABCDEF";
-    char hex_buffer[10];
     int shift;
     int index;
 
@@ -78,6 +77,4 @@ int kwrite_hex32(int fd, uint32_t value) {
     for (index = 0, shift = 28; index < 8; index++, shift -= 4) {
         hex_buffer[index + 2] = hex_digits[(value >> shift) & 0x0Fu];
     }
-
-    return kwrite(fd, hex_buffer, 10);
 }

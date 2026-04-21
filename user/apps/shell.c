@@ -9,7 +9,7 @@
 #include "user/entry.h"
 #include "user/syscall.h"
 
-static const char user_mode_ready[] = "Welcome to echo_line!\n";
+static const char user_mode_ready[] = "Welcome to shell!\n";
 
 int main(int argc, char **argv) {
     char buf[128];
@@ -21,14 +21,9 @@ int main(int argc, char **argv) {
 
     for (;;) {
         int count;
-
         count = read(0, buf, (int)sizeof(buf));
         if (count > 0) {    
-            if (count == 2 && buf[0] == '$') {
-                *(volatile char *)0xC0100000 = 11;
-            } else {
-                (void)write(1, buf, count);
-            }
+            (void)execve("echo_line");
         }
     }
 

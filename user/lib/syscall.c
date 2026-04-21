@@ -21,3 +21,7 @@ int read(int fd, char *buf, int len) {
 int write(int fd, const char *buf, int len) {
     return user_syscall3(SYS_WRITE, fd, (int)buf, len);
 }
+
+void execve(const char *program_name) {
+    user_syscall3(SYS_EXECVE, (int)program_name, 0, 0);
+}

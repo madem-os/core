@@ -143,6 +143,12 @@ void vm_activate_process(
     const struct process *process,
     const struct vm_runtime *runtime
 );
+/* Resets transient allocation state in a runtime before rebuilding an address space. */
+void vm_reset_runtime(struct vm_runtime *runtime);
+/* Returns an inactive runtime buffer suitable for building the next process image. */
+struct vm_runtime *vm_prepare_next_runtime(void);
+/* Marks a prepared runtime as the active process runtime after a successful switch. */
+void vm_set_active_runtime(struct vm_runtime *runtime);
 /* Returns the default kernel-owned VM runtime buffers and platform hooks. */
 struct vm_runtime *vm_default_runtime(void);
 #endif

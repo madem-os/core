@@ -19,6 +19,6 @@
 
 int kread(int fd, char *buf, int len);
 int kwrite(int fd, const char *buf, int len);
-int kwrite_hex32(int fd, uint32_t value);
+void int_to_hex32(uint32_t value, char *hex_buffer);
 
 #endif

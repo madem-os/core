@@ -42,6 +42,8 @@
 #include "kernel/user_programs.h"
 #include "kernel/vm.h"
 #include "tty/tty.h"
+#include "kernel/singletones.h"
+#include "kernel/exec.h"
 
 #if defined(__ELF__)
 #define KERNEL_ENTRY_SECTION __attribute__((section(".text.entry")))
@@ -51,17 +53,7 @@
 
 extern void kernel_entry(void);
 
-struct tty global_tty;
-struct text_console global_text_console;
-struct display vga_display;
-struct process kernel_process;
-
-char buf[256];
-
 void kmain(void) {
-    const struct user_program *initial_program;
-    struct vm_user_image initial_user_image;
-
     gdt_init();
     paging_unmap_bootstrap_low_alias();
     idt_init();
@@ -71,47 +63,25 @@ void kmain(void) {
     syscall_init();
     input_init();
     keyboard_init(input_handle_scancode);
-
-    init_vga_display(&vga_display, 0);
-    text_console_init(&global_text_console, &vga_display);
-    panic_set_console(&global_text_console);
-    tty_init(
-        &global_tty,
-        input_read_byte_blocking,
-        text_console_tty_write,
-        &global_text_console
-    );
-    process_init(&kernel_process);
-    process_set_tty_stdio(&kernel_process, &global_tty);
-    process_set_current(&kernel_process);
-    initial_program = user_program_find("echo_line");
-    if (
-        initial_program == NULL ||
-        vm_user_image_from_elf(
-            &initial_user_image,
-            initial_program->elf_start,
-            (size_t)(initial_program->elf_end - initial_program->elf_start)
-        ) != 0 ||
-        vm_init_process(
-            &kernel_process,
-            vm_default_runtime(),
-            &initial_user_image
-        ) != 0
-    ) {
-        kwrite(1, "vm init failed\n", 15);
-        for (;;) {
-        }
-    }
-
     x86_enable_interrupts();
 
-    kwrite(1, "Welcome to Madem-OS!\n", 21);
-    kwrite(1, "Kernel_entry=", 13);
-    kwrite_hex32(1, (uint32_t)(uintptr_t)kernel_entry);
-    kwrite(1, "\n", 1);
-    vm_activate_process(&kernel_process, vm_default_runtime());
-    x86_enter_usermode(
-        (uint32_t)kernel_process.entry_point,
-        (uint32_t)kernel_process.user_stack_top
+    init_vga_display(get_global_display(), 0);
+    text_console_init(get_global_text_console(), get_global_display());
+    panic_set_console(get_global_text_console());
+    tty_init(
+        get_global_tty(),
+        input_read_byte_blocking,
+        text_console_tty_write,
+        get_global_text_console()
     );
+
+    struct tty* gtty = get_global_tty();
+    gtty->write_output(gtty->output_ctx, "Welcome to Madem-OS!\n", 21);
+    gtty->write_output(gtty->output_ctx, "Kernel_entry=", 13);
+    char hex_buffer[10];
+    int_to_hex32((uint32_t)(uintptr_t)kernel_entry, hex_buffer);
+    gtty->write_output(gtty->output_ctx, hex_buffer, 10);
+    gtty->write_output(gtty->output_ctx, "\n", 1);
+
+    execve("shell");
 }

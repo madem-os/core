@@ -20,7 +20,8 @@
 
 enum syscall_number {
     SYS_READ = 0,
-    SYS_WRITE = 1
+    SYS_WRITE = 1,
+    SYS_EXECVE = 2,
 };
 
 typedef intptr_t kernel_syscall_arg_t;

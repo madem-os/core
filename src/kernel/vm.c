@@ -27,31 +27,50 @@
 #define VM_KERNEL_HIGH_TABLE_COUNT \
     (VM_KERNEL_HIGH_MAP_BYTES / (X86_PAGE_SIZE * X86_PAGE_TABLE_ENTRIES))
 #define VM_FRAME_POOL_PAGES 16u
-static uint32_t process_page_directory[X86_PAGE_DIRECTORY_ENTRIES]
+static uint32_t process_page_directories[2][X86_PAGE_DIRECTORY_ENTRIES]
     __attribute__((aligned(X86_PAGE_SIZE)));
-static uint32_t process_kernel_high_page_tables[VM_KERNEL_HIGH_TABLE_COUNT][X86_PAGE_TABLE_ENTRIES]
+static uint32_t process_kernel_high_page_tables[2][VM_KERNEL_HIGH_TABLE_COUNT][X86_PAGE_TABLE_ENTRIES]
     __attribute__((aligned(X86_PAGE_SIZE)));
-static uint32_t process_user_text_page_table[X86_PAGE_TABLE_ENTRIES]
+static uint32_t process_user_text_page_tables[2][X86_PAGE_TABLE_ENTRIES]
     __attribute__((aligned(X86_PAGE_SIZE)));
-static uint32_t process_user_stack_page_table[X86_PAGE_TABLE_ENTRIES]
+static uint32_t process_user_stack_page_tables[2][X86_PAGE_TABLE_ENTRIES]
     __attribute__((aligned(X86_PAGE_SIZE)));
-static uint8_t process_frame_pool[VM_FRAME_POOL_PAGES * X86_PAGE_SIZE]
+static uint8_t process_frame_pools[2][VM_FRAME_POOL_PAGES * X86_PAGE_SIZE]
     __attribute__((aligned(X86_PAGE_SIZE)));
-static struct vm_runtime default_vm_runtime = {
-    process_page_directory,
-    &process_kernel_high_page_tables[0][0],
-    VM_KERNEL_HIGH_TABLE_COUNT,
-    process_user_text_page_table,
-    process_user_stack_page_table,
-    process_frame_pool,
-    VM_FRAME_POOL_PAGES,
-    0,
-    NULL,
-    NULL
-};
+static struct vm_runtime vm_runtimes[2];
+static size_t active_vm_runtime_index;
+static int vm_runtimes_initialized;
 
 static uint32_t vm_kernel_pointer_to_physical(const void *pointer) {
     return (uint32_t)((uintptr_t)pointer - (uintptr_t)VM_KERNEL_VIRT_BASE);
+}
+
+static void vm_configure_runtime(struct vm_runtime *runtime, size_t runtime_index) {
+    runtime->page_directory = &process_page_directories[runtime_index][0];
+    runtime->kernel_high_page_tables = &process_kernel_high_page_tables[runtime_index][0][0];
+    runtime->kernel_high_table_count = VM_KERNEL_HIGH_TABLE_COUNT;
+    runtime->user_text_page_table = &process_user_text_page_tables[runtime_index][0];
+    runtime->user_stack_page_table = &process_user_stack_page_tables[runtime_index][0];
+    runtime->frame_pool = &process_frame_pools[runtime_index][0];
+    runtime->frame_pool_page_count = VM_FRAME_POOL_PAGES;
+    runtime->next_free_frame_page = 0;
+    runtime->pointer_to_physical = vm_kernel_pointer_to_physical;
+#if defined(__ELF__) && defined(__i386__)
+    runtime->load_page_directory = paging_load_page_directory;
+#else
+    runtime->load_page_directory = NULL;
+#endif
+}
+
+static void vm_initialize_runtimes(void) {
+    if (vm_runtimes_initialized) {
+        return;
+    }
+
+    vm_configure_runtime(&vm_runtimes[0], 0u);
+    vm_configure_runtime(&vm_runtimes[1], 1u);
+    active_vm_runtime_index = 0u;
+    vm_runtimes_initialized = 1;
 }
 
 static void vm_zero_bytes(void *buffer, size_t byte_count) {
@@ -387,12 +406,32 @@ void vm_activate_process(
     }
 }
 
+void vm_reset_runtime(struct vm_runtime *runtime) {
+    if (runtime != NULL) {
+        runtime->next_free_frame_page = 0;
+    }
+}
+
+struct vm_runtime *vm_prepare_next_runtime(void) {
+    size_t next_runtime_index;
+
+    vm_initialize_runtimes();
+    next_runtime_index = active_vm_runtime_index ^ 1u;
+    vm_reset_runtime(&vm_runtimes[next_runtime_index]);
+    return &vm_runtimes[next_runtime_index];
+}
+
+void vm_set_active_runtime(struct vm_runtime *runtime) {
+    vm_initialize_runtimes();
+
+    if (runtime == &vm_runtimes[0]) {
+        active_vm_runtime_index = 0u;
+    } else if (runtime == &vm_runtimes[1]) {
+        active_vm_runtime_index = 1u;
+    }
+}
+
 struct vm_runtime *vm_default_runtime(void) {
-    default_vm_runtime.pointer_to_physical = vm_kernel_pointer_to_physical;
-#if defined(__ELF__) && defined(__i386__)
-    default_vm_runtime.load_page_directory = paging_load_page_directory;
-#else
-    default_vm_runtime.load_page_directory = NULL;
-#endif
-    return &default_vm_runtime;
+    vm_initialize_runtimes();
+    return &vm_runtimes[active_vm_runtime_index];
 }

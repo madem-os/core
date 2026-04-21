@@ -15,5 +15,6 @@
 
 int read(int fd, char *buf, int len);
 int write(int fd, const char *buf, int len);
+void execve(const char *program_name);
 
 #endif
