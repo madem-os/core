@@ -64,6 +64,8 @@ fi
 
 NASM="$(find_tool nasm || true)"
 TRUNCATE_BIN="$(find_tool truncate gtruncate || true)"
+RUSTC="$(find_tool rustc || true)"
+USER_RUST_TARGET="${USER_RUST_TARGET:-i686-unknown-linux-gnu}"
 
 if [[ "${OS}" == "Darwin" ]]; then
     CC="$(find_tool i686-elf-gcc x86_64-elf-gcc "${BREW_PREFIX}/opt/llvm/bin/clang" clang || true)"
@@ -192,13 +194,8 @@ compile_source_tree() {
 
 compile_source_tree src "${BUILD_OBJ_DIR}" KERNEL_OBJECTS
 
-build_user_program() {
-    local app_name="$1"
-    local app_source="$2"
-    local app_symbol_name="${app_name//-/_}"
-    local user_elf="${USER_BUILD_DIR}/${app_name}.elf"
-    local user_blob_obj="${USER_BUILD_OBJ_DIR}/${app_name}_elf_blob.o"
-    local user_objects=()
+compile_user_support_objects() {
+    local array_name="$1"
     local source_file=""
     local object_file=""
 
@@ -206,12 +203,56 @@ build_user_program() {
         object_file="${USER_BUILD_OBJ_DIR}/${source_file}.o"
         mkdir -p "$(dirname "${object_file}")"
         "${CC}" "${INCLUDE_FLAGS[@]}" "${CFLAGS[@]}" "${source_file}" -o "${object_file}"
-        user_objects+=("${object_file}")
+        eval "${array_name}+=(\"\${object_file}\")"
     done < <(find user/lib -type f \( -name '*.c' -o -name '*.S' \) -print0)
+}
+
+compile_user_rust_app() {
+    local app_source="$1"
+    local object_file="$2"
+
+    require_tool \
+        "rustc" \
+        "Install Rust and make sure the \`${USER_RUST_TARGET}\` target is available for rustc." \
+        "${RUSTC:-}" rustc
+
+    "${RUSTC}" \
+        --crate-name "$(basename "${app_source%.rs}" | tr '-' '_')" \
+        --crate-type lib \
+        --emit=obj \
+        --target "${USER_RUST_TARGET}" \
+        -C panic=abort \
+        -C relocation-model=static \
+        -o "${object_file}" \
+        "${app_source}"
+}
+
+build_user_program() {
+    local app_name="$1"
+    local app_source="$2"
+    local app_symbol_name="${app_name//-/_}"
+    local app_extension="${app_source##*.}"
+    local user_elf="${USER_BUILD_DIR}/${app_name}.elf"
+    local user_blob_obj="${USER_BUILD_OBJ_DIR}/${app_name}_elf_blob.o"
+    local user_objects=()
+    local object_file=""
+
+    compile_user_support_objects user_objects
 
     object_file="${USER_BUILD_OBJ_DIR}/${app_source}.o"
     mkdir -p "$(dirname "${object_file}")"
-    "${CC}" "${INCLUDE_FLAGS[@]}" "${CFLAGS[@]}" "${app_source}" -o "${object_file}"
+    case "${app_extension}" in
+        c)
+            "${CC}" "${INCLUDE_FLAGS[@]}" "${CFLAGS[@]}" "${app_source}" -o "${object_file}"
+            ;;
+        rs)
+            compile_user_rust_app "${app_source}" "${object_file}"
+            ;;
+        *)
+            printf 'Unsupported user app source type: %s\n' "${app_source}" >&2
+            exit 1
+            ;;
+    esac
     user_objects+=("${object_file}")
 
     "${LD_BIN}" -m elf_i386 -T user/link.ld -o "${user_elf}" "${user_objects[@]}"
@@ -244,21 +285,21 @@ generate_user_program_registry() {
     } > "${registry_c}"
 
     while IFS= read -r -d '' app_source; do
-        app_name="$(basename "${app_source%.c}")"
+        app_name="$(basename "${app_source%.*}")"
         app_symbol_name="${app_name//-/_}"
         build_user_program "${app_name}" "${app_source}"
         printf 'extern const uint8_t _user_%s_elf_start[];\n' "${app_symbol_name}" >> "${registry_c}"
         printf 'extern const uint8_t _user_%s_elf_end[];\n' "${app_symbol_name}" >> "${registry_c}"
-    done < <(find user/apps -maxdepth 1 -type f -name '*.c' -print0 | sort -z)
+    done < <(find user/apps -maxdepth 1 -type f \( -name '*.c' -o -name '*.rs' \) -print0 | sort -z)
 
     {
         printf '\nconst struct user_program builtin_user_programs[] = {\n'
         while IFS= read -r -d '' app_source; do
-            app_name="$(basename "${app_source%.c}")"
+            app_name="$(basename "${app_source%.*}")"
             app_symbol_name="${app_name//-/_}"
             printf '    {"%s", _user_%s_elf_start, _user_%s_elf_end},\n' \
                 "${app_name}" "${app_symbol_name}" "${app_symbol_name}"
-        done < <(find user/apps -maxdepth 1 -type f -name '*.c' -print0 | sort -z)
+        done < <(find user/apps -maxdepth 1 -type f \( -name '*.c' -o -name '*.rs' \) -print0 | sort -z)
         printf '};\n\n'
         printf 'const size_t builtin_user_program_count = sizeof(builtin_user_programs) / sizeof(builtin_user_programs[0]);\n'
     } >> "${registry_c}"
